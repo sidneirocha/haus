@@ -80,10 +80,10 @@ footer { position: absolute; z-index: 5; left: 40px; right: 40px; bottom: 35px; 
 .case-device.is-line-frame .case-device-camera { display: none; }
 .case-device.is-line-frame .case-device-base { left: 9%; right: 9%; height: 1px; border-radius: 0; background: #0fdb68; box-shadow: 0 0 14px rgba(15,219,104,.35); }
 .case-device.is-line-frame .case-device-base::before, .case-device.is-line-frame .case-device-base i { display: none; }
-.case-gallery-stage { position: relative; aspect-ratio: 1.55; overflow: hidden; border-radius: 10px; background: #171717; isolation: isolate; }
+.case-gallery-stage { position: relative; aspect-ratio: 1.55; overflow: hidden; border-radius: 10px; background: #171717; isolation: isolate; user-select: none; -webkit-user-select: none; }
 .case-gallery-stage::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(135deg, rgba(15,219,104,.12), transparent 28%, transparent 72%, rgba(0,0,0,.24)); mix-blend-mode: screen; opacity: .65; }
 .case-gallery-track { position: absolute; inset: 0; z-index: 0; display: flex; flex-direction: column; width: 100%; height: 100%; transition: transform .65s cubic-bezier(.2,.8,.2,1); will-change: transform; }
-.case-gallery-stage img { position: relative; inset: auto; flex: 0 0 100%; z-index: 0; width: 100%; height: 100%; display: block; object-fit: cover; opacity: 1; transform: none; filter: saturate(1.04); }
+.case-gallery-stage img { position: relative; inset: auto; flex: 0 0 100%; z-index: 0; width: 100%; height: 100%; display: block; object-fit: cover; opacity: 1; transform: none; filter: saturate(1.04); pointer-events: none; -webkit-user-drag: none; }
 .case-gallery-stage img.is-m4-cover { object-fit: contain; padding: 22px; background: #000; filter: none; }
 .case-brand-cover { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: #071a2b; pointer-events: none; }
 .case-brand-cover img { width: min(48%, 360px); height: auto; object-fit: contain; filter: none; }
@@ -117,7 +117,8 @@ footer { position: absolute; z-index: 5; left: 40px; right: 40px; bottom: 35px; 
 .case-gallery-dots { display: flex; gap: 7px; padding-top: 12px; }
 .case-gallery-dots button { width: 28px; height: 3px; padding: 0; border: 0; border-radius: 0; background: #383838; cursor: pointer; transition: width .25s ease, background .25s ease; }
 .case-gallery-dots button.is-active { width: 42px; background: #0fdb68; }
-.floating-actions { position: fixed; z-index: 30; right: 28px; bottom: 28px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.floating-actions { position: fixed; z-index: 30; right: 28px; bottom: 28px; display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none; }
+.floating-actions .whatsapp-widget, .floating-actions .back-to-top.is-visible { pointer-events: auto; }
 .whatsapp-widget { position: relative; }
 .whatsapp-float, .back-to-top { display: grid; place-items: center; width: 50px; height: 50px; border: 1px solid rgba(15,219,104,.5); border-radius: 50%; background: #0fdb68; color: #000; box-shadow: 0 12px 26px rgba(0,0,0,.28); transition: transform .25s ease, background .25s ease, opacity .25s ease; }
 .whatsapp-float:hover, .whatsapp-float:focus-visible, .back-to-top:hover, .back-to-top:focus-visible { background: #fff; transform: translateY(-3px); outline: none; }
