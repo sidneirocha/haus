@@ -96,6 +96,17 @@ function Nav() {
   </nav>
 }
 
+function SiteHeader() {
+  const [isScrolled, setIsScrolled] = useState(false)
+  useEffect(() => {
+    const update = () => setIsScrolled(window.scrollY > 12)
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    return () => window.removeEventListener('scroll', update)
+  }, [])
+  return <header className={`site-header ${isScrolled ? 'is-scrolled' : ''}`}><Logo /><Nav /></header>
+}
+
 function HomeDisplay() {
   const words = ['ficam.', 'conectam.', 'crescem.']
   const [activeWord, setActiveWord] = useState(0)
@@ -309,7 +320,7 @@ function FloatingActions() {
 
 function Footer() { return <footer><a href="mailto:contato@haus.art.br">contato@haus.art.br</a><a href="https://www.instagram.com/haus.art.br" target="_blank" rel="noreferrer">Insta</a></footer> }
 
-function Home({ cards, settings }: { cards: Card[]; settings: Settings }) { return <main className="page"><Grid /><header><Logo /><Nav /></header><HomeDisplay /><ParallaxMarquee cards={cards} settings={settings} /><Footer /></main> }
+function Home({ cards, settings }: { cards: Card[]; settings: Settings }) { return <main className="page"><Grid /><SiteHeader /><HomeDisplay /><ParallaxMarquee cards={cards} settings={settings} /><Footer /></main> }
 
 function Cases() {
   useEffect(() => {
@@ -338,7 +349,7 @@ function Cases() {
   }, [])
   return <main className="cases-page">
     <Grid />
-    <header><Logo /><Nav /></header>
+    <SiteHeader />
     <section className="cases-intro">
       <p className="eyebrow">Haus / Cases</p>
       <h1><span className="display-line">Ideias que</span><br /><span className="display-line display-line-muted">ganham forma.</span></h1>
@@ -399,7 +410,7 @@ function Contact() {
   }
   return <main className="contact-page">
     <Grid />
-    <header><Logo /><Nav /></header>
+    <SiteHeader />
     <section className="contact-layout">
       <div className="contact-intro">
         <p className="eyebrow">Haus / Contato</p>
@@ -522,7 +533,7 @@ function About() {
   ]
   return <main className="about-page">
     <Grid />
-    <header><Logo /><Nav /></header>
+    <SiteHeader />
     <section className="about-hero">
       <p className="eyebrow">Haus / Sobre</p>
       <h1><span className="display-line">Design para</span><br /><span className="display-line display-line-muted">deixar marca.</span></h1>
