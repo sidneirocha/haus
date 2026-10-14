@@ -163,6 +163,9 @@ footer { position: absolute; z-index: 5; left: 40px; right: 40px; bottom: 35px; 
 .contact-form input:focus, .contact-form textarea:focus { border-color: #0fdb68; background: rgba(15,219,104,.06); box-shadow: 0 0 0 2px rgba(15,219,104,.12); }
 .contact-form button { justify-self: start; margin-top: 8px; border: 1px solid #0fdb68; border-radius: 0; padding: 14px 20px; color: #000; background: #0fdb68; box-shadow: 0 8px 24px rgba(15,219,104,.16); cursor: pointer; font: 500 14px 'Inter Tight', Inter, Arial, sans-serif; transition: background .25s ease, color .25s ease, box-shadow .25s ease; }
 .contact-form button:hover, .contact-form button:focus-visible { color: #0fdb68; background: #000; outline: 0; }
+.contact-form button:disabled { cursor: wait; opacity: .65; }
+.contact-form-status { margin: -8px 0 0; color: #0fdb68; font-size: 13px; line-height: 1.4; }
+.contact-form-status[role='alert'] { color: #ff8f80; }
 .about-page { position: relative; min-height: 100vh; overflow: hidden; padding: 23px 40px 120px; background: #000; }
 .about-page header { position: fixed; left: 40px; right: 40px; top: 23px; }
 .about-page footer { position: absolute; }

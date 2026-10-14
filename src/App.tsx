@@ -3,6 +3,8 @@ import type { CSSProperties, ReactElement } from 'react'
 
 const sitePath = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`
 const assetPath = (path: string) => sitePath(path)
+const contactEndpoint = 'https://script.google.com/macros/s/AKfycbxMvjlSDTsoULPbuTwLVyq3jqyYjm7hEQi5RZzJ4YQ2W0mqmA5nkj1bu8pFU6qXGjlF/exec'
+const createRequestId = () => `haus-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 const currentPath = () => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '')
   const pathname = window.location.pathname
@@ -359,8 +361,33 @@ function Cases() {
 }
 
 function Contact() {
-  const [sent, setSent] = useState(false)
-  const submit = (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); setSent(true) }
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const form = event.currentTarget
+    const formData = new FormData(form)
+    const payload = {
+      nome: String(formData.get('nome') || ''),
+      email: String(formData.get('email') || ''),
+      mensagem: String(formData.get('mensagem') || ''),
+      requestId: createRequestId(),
+    }
+    setStatus('sending')
+    try {
+      await fetch(contactEndpoint, {
+        method: 'POST',
+        mode: 'no-cors',
+        credentials: 'omit',
+        referrerPolicy: 'strict-origin-when-cross-origin',
+        // Texto simples evita preflight; o Apps Script interpreta o conteúdo como JSON.
+        body: JSON.stringify(payload),
+      })
+      form.reset()
+      setStatus('success')
+    } catch {
+      setStatus('error')
+    }
+  }
   return <main className="contact-page">
     <Grid />
     <header><Logo /><Nav /></header>
@@ -372,11 +399,12 @@ function Contact() {
         <a className="contact-email" href="mailto:contato@haus.art.br">contato@haus.art.br <span aria-hidden="true">↗</span></a>
       </div>
       <form className="contact-form" onSubmit={submit}>
-        <label>Nome<input name="name" type="text" placeholder="Seu nome" required /></label>
+        <label>Nome<input name="nome" type="text" placeholder="Seu nome" required /></label>
         <label>E-mail<input name="email" type="email" placeholder="voce@empresa.com" required /></label>
-        <label>Empresa<input name="company" type="text" placeholder="Nome da empresa" /></label>
-        <label>Mensagem<textarea name="message" placeholder="Como podemos ajudar?" rows={5} required /></label>
-        <button type="submit">{sent ? 'Mensagem enviada ✓' : 'Enviar mensagem ↗'}</button>
+        <label>Fale sobre seu projeto<textarea name="mensagem" placeholder="Como podemos ajudar?" rows={5} required /></label>
+        <button type="submit" disabled={status === 'sending'}>{status === 'success' ? 'Mensagem enviada ✓' : status === 'sending' ? 'Enviando…' : status === 'error' ? 'Tentar novamente ↗' : 'Enviar mensagem ↗'}</button>
+        {status === 'error' && <p className="contact-form-status" role="alert">Não foi possível enviar agora. Tente novamente.</p>}
+        {status === 'success' && <p className="contact-form-status" role="status">Recebemos sua mensagem e entraremos em contato.</p>}
       </form>
     </section>
     <Footer />
