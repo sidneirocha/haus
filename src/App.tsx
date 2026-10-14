@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactElement } from 'react'
 
+const sitePath = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`
+const assetPath = (path: string) => sitePath(path)
+const currentPath = () => {
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+  const pathname = window.location.pathname
+  return base && (pathname === base || pathname.startsWith(`${base}/`)) ? pathname.slice(base.length) || '/' : pathname
+}
+
 type Card = { id: string; image: string; title: string; depth: number; offset: number; active: boolean }
 type Settings = {
   speed: number; direction: 'left' | 'right'; cardWidth: number; cardHeight: number; gap: number
@@ -72,17 +80,17 @@ function Logo() {
     timer = window.setTimeout(tick, 700)
     return () => window.clearTimeout(timer)
   }, [logoIndex])
-  return <a className="logo" href="/" aria-label="Haus início">
+  return <a className="logo" href={sitePath('/')} aria-label="Haus início">
     <span className="logo-word" aria-live="polite">{typedLogo}<span className="logo-mark" aria-hidden="true" /></span>
   </a>
 }
 
 function Nav() {
   return <nav className="nav" aria-label="Navegação principal">
-    <a href="/"><span>Home</span><span>Home</span><span>Home</span></a>
-    <a href="/sobre"><span>Sobre</span><span>Sobre</span><span>Sobre</span></a>
-    <a href="/cases"><span>Cases</span><span>Cases</span><span>Cases</span></a>
-    <a href="/contato"><span>Contato</span><span>Contato</span><span>Contato</span></a>
+    <a href={sitePath('/')}><span>Home</span><span>Home</span><span>Home</span></a>
+    <a href={sitePath('/sobre')}><span>Sobre</span><span>Sobre</span><span>Sobre</span></a>
+    <a href={sitePath('/cases')}><span>Cases</span><span>Cases</span><span>Cases</span></a>
+    <a href={sitePath('/contato')}><span>Contato</span><span>Contato</span><span>Contato</span></a>
   </nav>
 }
 
@@ -249,7 +257,7 @@ function ParallaxMarquee({ cards, settings }: { cards: Card[]; settings: Setting
     if (state.current.moved) { event.preventDefault(); state.current.moved = false; return }
     event.preventDefault()
     event.stopPropagation()
-    const href = `/cases#case-${caseAnchorByCard[cardId]}`
+      const href = `${sitePath('/cases')}#case-${caseAnchorByCard[cardId]}`
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { window.location.assign(href); return }
     document.documentElement.classList.add('page-is-leaving')
     window.setTimeout(() => window.location.assign(href), 260)
@@ -258,8 +266,8 @@ function ParallaxMarquee({ cards, settings }: { cards: Card[]; settings: Setting
   return <section className="marquee" style={{ perspective: settings.perspective }} aria-label="Projetos em destaque" onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}>
     <div className="fade fade-left" /><div className="fade fade-right" />
     <div className="track" ref={track}>
-      {repeated.map((card, i) => <a className="project-card" href={`/cases#case-${caseAnchorByCard[card.id]}`} aria-label={`Abrir case ${card.title}`} key={`${card.id}-${i}`} style={{ width: settings.cardWidth, height: settings.cardHeight, marginRight: settings.gap, transform: `translateY(${settings.flow ? card.offset + Math.sin(i * 1.3) * 8 : card.offset}px) translateZ(${card.depth}px)`, filter: hover === card.id ? 'none' : settings.dof ? `blur(${Math.min(3, Math.abs(card.depth) / 80)}px)` : undefined }} onClick={event => openCard(event, card.id)} onMouseEnter={() => setHover(card.id)} onMouseLeave={() => setHover(null)}>
-        <img src={card.image} alt={card.title} draggable="false" />
+      {repeated.map((card, i) => <a className="project-card" href={`${sitePath('/cases')}#case-${caseAnchorByCard[card.id]}`} aria-label={`Abrir case ${card.title}`} key={`${card.id}-${i}`} style={{ width: settings.cardWidth, height: settings.cardHeight, marginRight: settings.gap, transform: `translateY(${settings.flow ? card.offset + Math.sin(i * 1.3) * 8 : card.offset}px) translateZ(${card.depth}px)`, filter: hover === card.id ? 'none' : settings.dof ? `blur(${Math.min(3, Math.abs(card.depth) / 80)}px)` : undefined }} onClick={event => openCard(event, card.id)} onMouseEnter={() => setHover(card.id)} onMouseLeave={() => setHover(null)}>
+        <img src={assetPath(card.image)} alt={card.title} draggable="false" />
         <span className={`card-caption ${hover === card.id ? 'is-visible' : ''}`}>{card.title}</span>
       </a>)}
     </div>
@@ -393,9 +401,9 @@ function CaseGallery({ project }: { project: CaseStudy }) {
         {isDigital && <div className="case-browser-bar" aria-hidden="true"><span className="case-browser-dots"><i /><i /><i /></span><span>haus.art.br / {project.id}</span><b>{project.service || 'Digital experience'}</b></div>}
         <div className={`case-gallery-stage ${isDigital ? 'is-digital' : ''}`}>
           <div className="case-gallery-track" style={{ transform: `translateY(-${active * 100}%)` }}>
-            {project.images.map((image, index) => <img className={project.id === 'm4-logistica' && index === 0 ? 'is-m4-cover' : undefined} key={image} src={image} alt={`${project.title} — imagem ${index + 1}`} />)}
+            {project.images.map((image, index) => <img className={project.id === 'm4-logistica' && index === 0 ? 'is-m4-cover' : undefined} key={image} src={assetPath(image)} alt={`${project.title} — imagem ${index + 1}`} />)}
           </div>
-          {project.id === 'bfx-identidade' && active === 0 && <div className="case-brand-cover"><img src="/assets/logo-bfx-dark.svg" alt="BFX Empresarial" /></div>}
+          {project.id === 'bfx-identidade' && active === 0 && <div className="case-brand-cover"><img src={assetPath('/assets/logo-bfx-dark.svg')} alt="BFX Empresarial" /></div>}
           {project.id === 'checkin' && <div className={`case-redactions case-redactions-${active}`} aria-hidden="true">
             {active === 0 && <i className="case-redaction checkin-home-name" />}
             {active === 4 && <>
@@ -426,14 +434,14 @@ function TechnologySection() {
   const sectionRef = useRef<HTMLElement>(null)
   const [isVisible, setIsVisible] = useState(false)
   const technologies = [
-    ['Gemini', 'AI e prototipação', 'gemini', '/assets/technologies/gemini.svg'],
-    ['Firebase', 'Produtos conectados', 'firebase', '/assets/technologies/firebase.svg'],
-    ['Figma', 'Sistemas de interface', 'figma', '/assets/technologies/figma.svg'],
-    ['OpenAI', 'Inteligência aplicada', 'openai', '/assets/technologies/openai.svg'],
-    ['AWS', 'Infraestrutura', 'aws', '/assets/technologies/aws.svg'],
-    ['Google Cloud', 'Dados e escala', 'google', '/assets/technologies/google-cloud.svg'],
-    ['Framer', 'Experiências web', 'framer', '/assets/technologies/framer.svg'],
-    ['Blender', 'Imagem e 3D', 'blender', '/assets/technologies/blender.svg'],
+    ['Gemini', 'AI e prototipação', 'gemini', assetPath('/assets/technologies/gemini.svg')],
+    ['Firebase', 'Produtos conectados', 'firebase', assetPath('/assets/technologies/firebase.svg')],
+    ['Figma', 'Sistemas de interface', 'figma', assetPath('/assets/technologies/figma.svg')],
+    ['OpenAI', 'Inteligência aplicada', 'openai', assetPath('/assets/technologies/openai.svg')],
+    ['AWS', 'Infraestrutura', 'aws', assetPath('/assets/technologies/aws.svg')],
+    ['Google Cloud', 'Dados e escala', 'google', assetPath('/assets/technologies/google-cloud.svg')],
+    ['Framer', 'Experiências web', 'framer', assetPath('/assets/technologies/framer.svg')],
+    ['Blender', 'Imagem e 3D', 'blender', assetPath('/assets/technologies/blender.svg')],
   ]
   useEffect(() => {
     const section = sectionRef.current
@@ -487,7 +495,7 @@ function About() {
       <div><p className="eyebrow">Como trabalhamos</p><h2><span className="display-line">Clareza antes</span><br /><span className="display-line display-line-muted">de tudo.</span></h2></div>
       <div className="process-list">{steps.map(([number, title, text]) => <article key={number}><span>{number}</span><div><h3>{title}</h3><p>{text}</p></div></article>)}</div>
     </section>
-    <section className="about-cta"><p className="eyebrow">Tem um projeto?</p><h2><span className="display-line">Vamos conversar</span><br /><span className="display-line display-line-muted">sobre ele.</span></h2><a className="case-link" href="/contato">Entrar em contato <span aria-hidden="true">↗</span></a></section>
+    <section className="about-cta"><p className="eyebrow">Tem um projeto?</p><h2><span className="display-line">Vamos conversar</span><br /><span className="display-line display-line-muted">sobre ele.</span></h2><a className="case-link" href={sitePath('/contato')}>Entrar em contato <span aria-hidden="true">↗</span></a></section>
     <Footer />
   </main>
 }
@@ -497,7 +505,7 @@ function Admin() {
   const save = () => { localStorage.setItem('haus-cards', JSON.stringify(cards)); localStorage.setItem('haus-settings', JSON.stringify(settings)); setSaved(true); setTimeout(() => setSaved(false), 1800) }
   const reset = () => { setCards(defaultCards); setSettings(defaultSettings); localStorage.removeItem('haus-cards'); localStorage.removeItem('haus-settings') }
   const update = (id: string, patch: Partial<Card>) => setCards(cs => cs.map(c => c.id === id ? { ...c, ...patch } : c))
-  return <div className="admin-shell"><div className="admin-top"><Logo /><a href="/">Voltar para o site</a></div><div className="admin-content"><div className="admin-heading"><p className="eyebrow">Haus / Admin</p><h1>ParallaxMarquee</h1><p>Gerencie os projetos e o movimento da Home.</p></div><div className="admin-grid"><section className="panel"><h2>Cards</h2>{cards.map(c => <div className="card-row" key={c.id}><img src={c.image} alt="" /><label><span>{c.id} — título</span><input value={c.title} onChange={e => update(c.id, { title: e.target.value })} /></label><label><span>Profundidade</span><input type="number" value={c.depth} onChange={e => update(c.id, { depth: Number(e.target.value) })} /></label><button className={c.active ? 'toggle active' : 'toggle'} onClick={() => update(c.id, { active: !c.active })}>{c.active ? 'Ativo' : 'Off'}</button></div>)}</section><section className="panel settings"><h2>Animação</h2><label><span>Velocidade <b>{settings.speed}</b></span><input type="range" min="0" max="5" step="0.1" value={settings.speed} onChange={e => setSettings({ ...settings, speed: Number(e.target.value) })} /></label><label><span>Direção</span><select value={settings.direction} onChange={e => setSettings({ ...settings, direction: e.target.value as Settings['direction'] })}><option value="left">Esquerda</option><option value="right">Direita</option></select></label><label><span>Largura <b>{settings.cardWidth}px</b></span><input type="range" min="220" max="520" value={settings.cardWidth} onChange={e => setSettings({ ...settings, cardWidth: Number(e.target.value) })} /></label><label><span>Altura <b>{settings.cardHeight}px</b></span><input type="range" min="150" max="320" value={settings.cardHeight} onChange={e => setSettings({ ...settings, cardHeight: Number(e.target.value) })} /></label><label className="check"><input type="checkbox" checked={settings.flow} onChange={e => setSettings({ ...settings, flow: e.target.checked })} /> Flow vertical</label><label className="check"><input type="checkbox" checked={settings.wheel} onChange={e => setSettings({ ...settings, wheel: e.target.checked })} /> Wheel scroll</label><label className="check"><input type="checkbox" checked={settings.dof} onChange={e => setSettings({ ...settings, dof: e.target.checked })} /> Depth of field</label></section></div><div className="admin-actions"><button onClick={reset}>Restaurar padrão</button><button className="primary" onClick={save}>{saved ? 'Salvo ✓' : 'Salvar alterações'}</button></div></div></div>
+  return <div className="admin-shell"><div className="admin-top"><Logo /><a href={sitePath('/')}>Voltar para o site</a></div><div className="admin-content"><div className="admin-heading"><p className="eyebrow">Haus / Admin</p><h1>ParallaxMarquee</h1><p>Gerencie os projetos e o movimento da Home.</p></div><div className="admin-grid"><section className="panel"><h2>Cards</h2>{cards.map(c => <div className="card-row" key={c.id}><img src={assetPath(c.image)} alt="" /><label><span>{c.id} — título</span><input value={c.title} onChange={e => update(c.id, { title: e.target.value })} /></label><label><span>Profundidade</span><input type="number" value={c.depth} onChange={e => update(c.id, { depth: Number(e.target.value) })} /></label><button className={c.active ? 'toggle active' : 'toggle'} onClick={() => update(c.id, { active: !c.active })}>{c.active ? 'Ativo' : 'Off'}</button></div>)}</section><section className="panel settings"><h2>Animação</h2><label><span>Velocidade <b>{settings.speed}</b></span><input type="range" min="0" max="5" step="0.1" value={settings.speed} onChange={e => setSettings({ ...settings, speed: Number(e.target.value) })} /></label><label><span>Direção</span><select value={settings.direction} onChange={e => setSettings({ ...settings, direction: e.target.value as Settings['direction'] })}><option value="left">Esquerda</option><option value="right">Direita</option></select></label><label><span>Largura <b>{settings.cardWidth}px</b></span><input type="range" min="220" max="520" value={settings.cardWidth} onChange={e => setSettings({ ...settings, cardWidth: Number(e.target.value) })} /></label><label><span>Altura <b>{settings.cardHeight}px</b></span><input type="range" min="150" max="320" value={settings.cardHeight} onChange={e => setSettings({ ...settings, cardHeight: Number(e.target.value) })} /></label><label className="check"><input type="checkbox" checked={settings.flow} onChange={e => setSettings({ ...settings, flow: e.target.checked })} /> Flow vertical</label><label className="check"><input type="checkbox" checked={settings.wheel} onChange={e => setSettings({ ...settings, wheel: e.target.checked })} /> Wheel scroll</label><label className="check"><input type="checkbox" checked={settings.dof} onChange={e => setSettings({ ...settings, dof: e.target.checked })} /> Depth of field</label></section></div><div className="admin-actions"><button onClick={reset}>Restaurar padrão</button><button className="primary" onClick={save}>{saved ? 'Salvo ✓' : 'Salvar alterações'}</button></div></div></div>
 }
 
-export function App() { const [cards] = useState(loadCards); const [settings] = useState(() => load('haus-settings', defaultSettings)); const path = window.location.pathname; let content: ReactElement; if (path === '/admin') content = <Admin />; else if (path === '/cases') content = <Cases />; else if (path === '/contato') content = <Contact />; else if (path === '/sobre') content = <About />; else content = <Home cards={cards} settings={settings} />; return <><PageTransition />{content}{path !== '/admin' && <FloatingActions />}</> }
+export function App() { const [cards] = useState(loadCards); const [settings] = useState(() => load('haus-settings', defaultSettings)); const path = currentPath(); let content: ReactElement; if (path === '/admin') content = <Admin />; else if (path === '/cases') content = <Cases />; else if (path === '/contato') content = <Contact />; else if (path === '/sobre') content = <About />; else content = <Home cards={cards} settings={settings} />; return <><PageTransition />{content}{path !== '/admin' && <FloatingActions />}</> }
