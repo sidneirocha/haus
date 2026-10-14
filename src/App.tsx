@@ -414,6 +414,9 @@ function CaseGallery({ project }: { project: CaseStudy }) {
               <i className="case-redaction checkin-signature-name-1" /><i className="case-redaction checkin-signature-cpf-1" />
               <i className="case-redaction checkin-signature-name-2" /><i className="case-redaction checkin-signature-cpf-2" />
             </>}
+            {active >= 4 && active <= 8 && <>
+              <i className="case-redaction checkin-profile-avatar" /><i className="case-redaction checkin-profile-name" />
+            </>}
           </div>}
           <div className="case-gallery-controls">
             <button type="button" onClick={previous} aria-label={`Imagem anterior de ${project.title}`}>←</button>
