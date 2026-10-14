@@ -362,10 +362,18 @@ function Cases() {
 
 function Contact() {
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
+  const formStartedAt = useRef(Date.now())
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = event.currentTarget
     const formData = new FormData(form)
+    const honeypot = String(formData.get('website') || '').trim()
+    const lastSubmission = Number(window.sessionStorage.getItem('haus-last-contact-submit') || 0)
+    const elapsed = Date.now() - formStartedAt.current
+    if (honeypot || elapsed < 1800 || Date.now() - lastSubmission < 60000) {
+      setStatus('error')
+      return
+    }
     const payload = {
       nome: String(formData.get('nome') || ''),
       email: String(formData.get('email') || ''),
@@ -383,6 +391,7 @@ function Contact() {
         body: JSON.stringify(payload),
       })
       form.reset()
+      window.sessionStorage.setItem('haus-last-contact-submit', String(Date.now()))
       setStatus('success')
     } catch {
       setStatus('error')
@@ -399,9 +408,10 @@ function Contact() {
         <a className="contact-email" href="mailto:contato@haus.art.br">contato@haus.art.br <span aria-hidden="true">↗</span></a>
       </div>
       <form className="contact-form" onSubmit={submit}>
-        <label>Nome<input name="nome" type="text" placeholder="Seu nome" required /></label>
+        <label className="contact-honeypot" aria-hidden="true">Website<input name="website" type="text" tabIndex={-1} autoComplete="off" /></label>
+        <label>Nome<input name="nome" type="text" placeholder="Seu nome" minLength={2} required /></label>
         <label>E-mail<input name="email" type="email" placeholder="voce@empresa.com" required /></label>
-        <label>Fale sobre seu projeto<textarea name="mensagem" placeholder="Como podemos ajudar?" rows={5} required /></label>
+        <label>Fale sobre seu projeto<textarea name="mensagem" placeholder="Como podemos ajudar?" rows={5} minLength={12} required /></label>
         <button type="submit" disabled={status === 'sending'}>{status === 'success' ? 'Mensagem enviada ✓' : status === 'sending' ? 'Enviando…' : status === 'error' ? 'Tentar novamente ↗' : 'Enviar mensagem ↗'}</button>
         {status === 'error' && <p className="contact-form-status" role="alert">Não foi possível enviar agora. Tente novamente.</p>}
         {status === 'success' && <p className="contact-form-status" role="status">Recebemos sua mensagem e entraremos em contato.</p>}

@@ -156,6 +156,7 @@ footer { position: absolute; z-index: 5; left: 40px; right: 40px; bottom: 35px; 
 .contact-email:hover, .contact-email:focus-visible { color: #0fdb68; }
 .contact-email span { color: #0fdb68; font-size: 22px; text-decoration: none; }
 .contact-form { display: grid; gap: 25px; padding: clamp(24px, 3vw, 40px); border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.86); box-shadow: 0 22px 60px rgba(0,0,0,.32), inset 0 0 0 1px rgba(15,219,104,.06); backdrop-filter: blur(8px); }
+.contact-honeypot { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 .contact-form label { display: grid; gap: 9px; color: #c8c8c8; font-size: 11px; text-transform: uppercase; letter-spacing: .14em; transition: color .2s ease; }
 .contact-form label:focus-within { color: #0fdb68; }
 .contact-form input, .contact-form textarea { width: 100%; resize: vertical; border: 1px solid rgba(255,255,255,.16); border-bottom-color: #777; border-radius: 0; outline: 0; padding: 11px 12px 12px; color: #fff; background: rgba(255,255,255,.035); font: 16px/1.35 'Inter Tight', Inter, Arial, sans-serif; transition: border-color .2s ease, background .2s ease, box-shadow .2s ease; }
