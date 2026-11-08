@@ -61,12 +61,14 @@
 .crm-kanban-meta { display: flex; justify-content: space-between; gap: 6px; margin-top: 13px; color: var(--crm-muted); font-size: 11px; }
 .crm-kanban-meta span { display: inline-flex; align-items: center; gap: 4px; }
 .crm-kanban-card p { color: var(--crm-muted); border-top: 1px solid var(--crm-line); padding-top: 9px; margin: 10px 0 0; font-size: 11px; line-height: 1.4; }
+.crm-kanban-status { width: 100%; margin-top: 9px; border: 1px solid var(--crm-line); border-radius: 5px; background: #fff; color: var(--crm-muted); padding: 5px 6px; font: inherit; font-size: 10px; }
 .crm-kanban-empty { border: 1px dashed #cbd8d1; border-radius: 7px; padding: 18px 8px; text-align: center; color: #8a9791; font-size: 11px; }
 .crm-finance-toolbar, .crm-analytics-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 15px; }
 .crm-finance-toolbar > div > span, .crm-analytics-toolbar > div > span { color: var(--crm-muted); font-size: 12px; display: block; margin-top: 4px; }
 .crm-month-picker { display: flex; align-items: center; gap: 8px; color: var(--crm-muted); font-size: 11px; font-weight: 700; }
 .crm-month-picker input { border: 1px solid var(--crm-line); border-radius: 7px; background: #fff; color: var(--crm-ink); padding: 8px; font: inherit; }
 .crm-finance-card { padding: 18px; margin-top: 15px; }
+.crm-mobile-scrim { display: none; }
 .crm-finance-in { color: #137b43 !important; font-weight: 700; }
 .crm-finance-out { color: #bd433c !important; font-weight: 700; }
 .crm-analytics-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(300px, .9fr); gap: 15px; margin-top: 15px; }
@@ -86,5 +88,6 @@
 .crm-analytics-notes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .crm-analytics-notes span { padding: 13px; border: 1px solid var(--crm-line); border-radius: 7px; color: var(--crm-muted); font-size: 12px; }
 .crm-analytics-notes strong { display: block; color: var(--crm-ink); font-size: 22px; margin-bottom: 4px; }
+.crm-form-error { margin: 0; padding: 9px 10px; border: 1px solid #f1c4c1; border-radius: 6px; background: #fff2f1; color: #a6403a; font-size: 12px; }
 @media (max-width: 980px) { .crm-kanban { grid-template-columns: repeat(4, 220px); } .crm-analytics-grid { grid-template-columns: 1fr; } }
-@media (max-width: 700px) { .crm-toolbar .crm-view-toggle { margin-left: 0; } .crm-kanban { grid-template-columns: repeat(4, 220px); } .crm-finance-toolbar, .crm-analytics-toolbar { align-items: flex-start; flex-direction: column; } .crm-month-picker { width: 100%; justify-content: space-between; } .crm-analytics-notes { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .crm-mobile-scrim { display: block; position: fixed; inset: 0; z-index: 29; border: 0; background: rgba(16, 31, 24, .25); cursor: pointer; }.crm-toolbar .crm-view-toggle { margin-left: 0; }.crm-kanban { grid-template-columns: repeat(4, 220px); }.crm-finance-toolbar, .crm-analytics-toolbar { align-items: flex-start; flex-direction: column; }.crm-month-picker { width: 100%; justify-content: space-between; }.crm-analytics-notes { grid-template-columns: 1fr; } }

@@ -33,9 +33,17 @@ export const crmRepository = {
     if (!endpoint) { const project = { ...input, id: `pro-${Date.now()}`, clientName: client?.company ?? 'Cliente' }; demoState.projects.unshift(project); return project }
     return request<Project>('project.create', { method: 'POST', body: JSON.stringify({ action: 'project.create', ...input }) })
   },
+  async updateProjectStatus(id: string, status: Project['status']) {
+    if (!endpoint) { const project = demoState.projects.find(item => item.id === id); if (!project) throw new Error('Projeto não encontrado.'); project.status = status; return project }
+    return request<Project>('project.status', { method: 'POST', body: JSON.stringify({ action: 'project.status', id, status }) })
+  },
   async createService(input: Omit<Service, 'id'>) {
     if (!endpoint) { const service = { ...input, id: `srv-${Date.now()}` }; demoState.services.unshift(service); return service }
     return request<Service>('service.create', { method: 'POST', body: JSON.stringify({ action: 'service.create', ...input }) })
+  },
+  async createQuote(input: { clientId: string; clientName: string; company: string; items: Quote['items']; expiresAt: string; notes: string; pixKey: string; paymentUrl: string }) {
+    if (!endpoint) { const quote: Quote = { ...input, id: `orc-${Date.now()}`, token: `haus-demo-${Date.now()}`, status: 'Rascunho', createdAt: new Date().toISOString().slice(0, 10), installments: [] }; demoState.quotes.unshift(quote); return quote }
+    return request<Quote>('quote.create', { method: 'POST', body: JSON.stringify({ action: 'quote.create', ...input }) })
   },
   async createFinance(input: Omit<FinancialEntry, 'id'>) {
     if (!endpoint) { const entry = { ...input, id: `fin-${Date.now()}` }; demoState.finances.unshift(entry); return entry }
