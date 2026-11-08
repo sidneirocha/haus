@@ -1,5 +1,5 @@
 import { demoData } from './demo-data'
-import type { Client, DashboardData, Project, Quote, Service } from './types'
+import type { Client, DashboardData, FinancialEntry, Project, Quote, Service } from './types'
 
 const endpoint = import.meta.env.VITE_CRM_ENDPOINT as string | undefined
 
@@ -21,7 +21,8 @@ async function request<T>(action: string, options: RequestInit = {}): Promise<T>
 export const crmRepository = {
   async getDashboard(): Promise<DashboardData> {
     if (!endpoint) return clone(demoState)
-    return request<DashboardData>('dashboard')
+    const response = await request<DashboardData>('dashboard')
+    return { ...response, finances: response.finances ?? [] }
   },
   async createClient(input: Omit<Client, 'id' | 'projects' | 'quotes'>) {
     if (!endpoint) { const client = { ...input, id: `cli-${Date.now()}`, projects: 0, quotes: 0 }; demoState.clients.unshift(client); return client }
@@ -35,6 +36,14 @@ export const crmRepository = {
   async createService(input: Omit<Service, 'id'>) {
     if (!endpoint) { const service = { ...input, id: `srv-${Date.now()}` }; demoState.services.unshift(service); return service }
     return request<Service>('service.create', { method: 'POST', body: JSON.stringify({ action: 'service.create', ...input }) })
+  },
+  async createFinance(input: Omit<FinancialEntry, 'id'>) {
+    if (!endpoint) { const entry = { ...input, id: `fin-${Date.now()}` }; demoState.finances.unshift(entry); return entry }
+    return request<FinancialEntry>('finance.create', { method: 'POST', body: JSON.stringify({ action: 'finance.create', ...input }) })
+  },
+  async settleFinance(id: string) {
+    if (!endpoint) { const entry = demoState.finances.find(item => item.id === id); if (!entry) throw new Error('Lançamento não encontrado.'); entry.status = entry.type === 'Entrada' ? 'Recebido' : 'Pago'; return entry }
+    return request<FinancialEntry>('finance.settle', { method: 'POST', body: JSON.stringify({ action: 'finance.settle', id }) })
   },
   async acceptQuote(token: string, signedName: string) {
     if (!endpoint) { const quote = demoState.quotes.find(item => item.token === token); if (!quote) throw new Error('Orçamento não encontrado.'); quote.status = 'Aceito'; quote.signedName = signedName; quote.signedAt = new Date().toISOString(); return quote }

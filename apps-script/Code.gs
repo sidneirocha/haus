@@ -11,6 +11,7 @@ const SHEETS = {
   Orcamentos: ['id', 'token', 'clientId', 'clientName', 'company', 'status', 'createdAt', 'expiresAt', 'notes', 'pixKey', 'paymentUrl', 'signedName', 'signedAt', 'updatedAt'],
   Itens_Orcamento: ['id', 'quoteId', 'serviceId', 'name', 'quantity', 'price', 'billing'],
   Parcelas: ['id', 'quoteId', 'dueDate', 'amount', 'paymentUrl', 'status', 'paidAt'],
+  Lancamentos_Financeiros: ['id', 'date', 'description', 'type', 'category', 'amount', 'status', 'clientId', 'clientName', 'projectId', 'projectName', 'notes', 'createdAt', 'updatedAt'],
   Atividades: ['id', 'type', 'recordId', 'message', 'createdAt'],
   Configuracoes: ['key', 'value']
 };
@@ -39,6 +40,8 @@ function doPost(e) {
     if (action === 'service.create') return json_(createRow_('Servicos', body));
     if (action === 'quote.create') return json_(createQuote_(body));
     if (action === 'installment.pay') return json_(payInstallment_(body));
+    if (action === 'finance.create') return json_(createFinance_(body));
+    if (action === 'finance.settle') return json_(settleFinance_(body));
     throw new Error('Ação POST inválida.');
   } catch (error) { return jsonError_(error); }
 }
@@ -80,7 +83,7 @@ function createRow_(name, body) {
   const stamp = now_(); const item = Object.assign({}, body, { id: id_(name.toLowerCase()), createdAt: stamp, updatedAt: stamp });
   delete item.action; delete item.adminKey; return append_(name, item);
 }
-function dashboard_() { return { clients: rows_('Clientes'), projects: rows_('Projetos'), services: rows_('Servicos'), quotes: quotes_() }; }
+function dashboard_() { return { clients: rows_('Clientes'), projects: rows_('Projetos'), services: rows_('Servicos'), quotes: quotes_(), finances: rows_('Lancamentos_Financeiros') }; }
 function quotes_() { return rows_('Orcamentos').map(function(quote) { quote.items = rows_('Itens_Orcamento').filter(function(item) { return item.quoteId === quote.id; }); quote.installments = rows_('Parcelas').filter(function(item) { return item.quoteId === quote.id; }); return quote; }); }
 function publicQuote_(token) { if (!token) throw new Error('Token ausente.'); const quote = quotes_().filter(function(item) { return item.token === token && ['Publicado', 'Aceito'].indexOf(item.status) >= 0; })[0]; if (!quote) throw new Error('Orçamento não encontrado.'); return quote; }
 function createQuote_(body) {
@@ -95,3 +98,5 @@ function acceptQuote_(body) {
   const statusCol = headers.indexOf('status') + 1; const nameCol = headers.indexOf('signedName') + 1; const signedAtCol = headers.indexOf('signedAt') + 1; const updatedCol = headers.indexOf('updatedAt') + 1; sheet.getRange(rowIndex + 1, statusCol).setValue('Aceito'); sheet.getRange(rowIndex + 1, nameCol).setValue(String(body.signedName).trim()); sheet.getRange(rowIndex + 1, signedAtCol).setValue(now_()); sheet.getRange(rowIndex + 1, updatedCol).setValue(now_()); return publicQuote_(body.token);
 }
 function payInstallment_(body) { if (!body.quoteId || !body.installmentId) throw new Error('Parcela inválida.'); const sheet = sheet_('Parcelas'); const values = sheet.getDataRange().getValues(); const headers = values[0]; const rowIndex = values.findIndex(function(row) { return row[headers.indexOf('id')] === body.installmentId && row[headers.indexOf('quoteId')] === body.quoteId; }); if (rowIndex < 1) throw new Error('Parcela não encontrada.'); sheet.getRange(rowIndex + 1, headers.indexOf('status') + 1).setValue('Pago'); sheet.getRange(rowIndex + 1, headers.indexOf('paidAt') + 1).setValue(now_()); return rows_('Parcelas').filter(function(item) { return item.id === body.installmentId; })[0]; }
+function createFinance_(body) { if (!body.date || !body.description || !body.type || !body.amount) throw new Error('Data, descrição, tipo e valor são obrigatórios.'); if (['Entrada', 'Saída', 'Custo'].indexOf(body.type) < 0) throw new Error('Tipo financeiro inválido.'); const item = createRow_('Lancamentos_Financeiros', { date: body.date, description: String(body.description).trim(), type: body.type, category: body.category || 'Geral', amount: Number(body.amount), status: body.status || 'Pendente', clientId: body.clientId || '', clientName: body.clientName || '', projectId: body.projectId || '', projectName: body.projectName || '', notes: body.notes || '' }); return rows_('Lancamentos_Financeiros').filter(function(row) { return row.id === item.id; })[0]; }
+function settleFinance_(body) { if (!body.id) throw new Error('Lançamento inválido.'); const sheet = sheet_('Lancamentos_Financeiros'); const values = sheet.getDataRange().getValues(); const headers = values[0]; const rowIndex = values.findIndex(function(row) { return row[headers.indexOf('id')] === body.id; }); if (rowIndex < 1) throw new Error('Lançamento não encontrado.'); const type = values[rowIndex][headers.indexOf('type')]; sheet.getRange(rowIndex + 1, headers.indexOf('status') + 1).setValue(type === 'Entrada' ? 'Recebido' : 'Pago'); sheet.getRange(rowIndex + 1, headers.indexOf('updatedAt') + 1).setValue(now_()); return rows_('Lancamentos_Financeiros').filter(function(item) { return item.id === body.id; })[0]; }

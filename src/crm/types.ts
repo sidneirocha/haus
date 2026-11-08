@@ -1,6 +1,8 @@
 export type ProjectStatus = 'Briefing' | 'Em produção' | 'Em revisão' | 'Concluído'
 export type QuoteStatus = 'Rascunho' | 'Publicado' | 'Aceito' | 'Recusado'
 export type InstallmentStatus = 'Pendente' | 'Pago' | 'Atrasado'
+export type FinancialType = 'Entrada' | 'Saída' | 'Custo'
+export type FinancialStatus = 'Pago' | 'Recebido' | 'Pendente'
 
 export type Client = {
   id: string
@@ -58,9 +60,25 @@ export type Quote = {
   signedAt?: string
 }
 
+export type FinancialEntry = {
+  id: string
+  date: string
+  description: string
+  type: FinancialType
+  category: string
+  amount: number
+  status: FinancialStatus
+  clientId?: string
+  clientName?: string
+  projectId?: string
+  projectName?: string
+  notes?: string
+}
+
 export type DashboardData = {
   projects: Project[]
   clients: Client[]
   services: Service[]
   quotes: Quote[]
+  finances: FinancialEntry[]
 }

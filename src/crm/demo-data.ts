@@ -1,4 +1,4 @@
-import type { Client, DashboardData, Project, Quote, Service } from './types'
+import type { Client, DashboardData, FinancialEntry, Project, Quote, Service } from './types'
 
 export const demoClients: Client[] = [
   { id: 'cli-01', name: 'Gustavo Erbisti', company: 'M4 Logística', email: 'gustavo@exemplo.com', phone: '+55 11 99999-0000', notes: 'Contato principal do projeto institucional.', projects: 1, quotes: 1 },
@@ -23,4 +23,11 @@ export const demoQuotes: Quote[] = [
   { id: 'orc-01', token: 'haus-demo-2026', clientId: 'cli-01', clientName: 'Gustavo Erbisti', company: 'M4 Logística', status: 'Publicado', createdAt: '2026-11-04', expiresAt: '2026-12-04', items: [{ serviceId: 'srv-01', name: 'Website institucional', quantity: 1, price: 7500, billing: 'Uma vez' }, { serviceId: 'srv-03', name: 'Suporte e evolução', quantity: 3, price: 600, billing: 'Mensal' }], notes: 'Prazo estimado: 30 dias úteis após aprovação.', pixKey: 'contato@haus.art.br', paymentUrl: '', installments: [{ id: 'par-01', dueDate: '2026-11-15', amount: 3750, paymentUrl: '', status: 'Pendente' }, { id: 'par-02', dueDate: '2026-12-15', amount: 3750, paymentUrl: '', status: 'Pendente' }] },
 ]
 
-export const demoData: DashboardData = { projects: demoProjects, clients: demoClients, services: demoServices, quotes: demoQuotes }
+export const demoFinances: FinancialEntry[] = [
+  { id: 'fin-01', date: '2026-11-04', description: 'Sinal — Website institucional', type: 'Entrada', category: 'Projetos', amount: 3750, status: 'Recebido', clientId: 'cli-01', clientName: 'M4 Logística', projectName: 'Website institucional' },
+  { id: 'fin-02', date: '2026-11-15', description: 'Parcela 2 — Website institucional', type: 'Entrada', category: 'Projetos', amount: 3750, status: 'Pendente', clientId: 'cli-01', clientName: 'M4 Logística', projectName: 'Website institucional' },
+  { id: 'fin-03', date: '2026-11-05', description: 'Assinatura de ferramentas', type: 'Custo', category: 'Software', amount: 552, status: 'Pago', notes: 'Ferramentas e infraestrutura do mês.' },
+  { id: 'fin-04', date: '2026-11-08', description: 'Serviço de contabilidade', type: 'Saída', category: 'Operação', amount: 450, status: 'Pendente' },
+]
+
+export const demoData: DashboardData = { projects: demoProjects, clients: demoClients, services: demoServices, quotes: demoQuotes, finances: demoFinances }

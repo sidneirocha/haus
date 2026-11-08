@@ -21,6 +21,8 @@
 
 ## Estrutura de abas
 
-`Clientes`, `Projetos`, `Servicos`, `Orcamentos`, `Itens_Orcamento`, `Parcelas`, `Atividades` e `Configuracoes`.
+`Clientes`, `Projetos`, `Servicos`, `Orcamentos`, `Itens_Orcamento`, `Parcelas`, `Lancamentos_Financeiros`, `Atividades` e `Configuracoes`.
+
+`Lancamentos_Financeiros` é independente de `Orcamentos`: registre nela toda entrada, saída ou custo da empresa, com status pago/recebido/pendente e vínculo opcional a cliente ou projeto.
 
 O contrato de resposta é `{ ok: true, data }` ou `{ ok: false, error }`.
