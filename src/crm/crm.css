@@ -15,3 +15,18 @@
 .crm-public-header-logo { display: block; width: 122px; height: auto; margin-bottom: 24px; }
 .crm-main, .crm-topbar { overflow: visible; }
 .crm-topbar > div:first-child { flex: 1 1 auto; }
+
+/* The public site has a global `header` rule; isolate the CRM header from it. */
+.crm-app header.crm-topbar {
+  position: relative;
+  inset: auto;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  width: auto;
+  display: flex;
+  z-index: 1;
+  isolation: isolate;
+}
+.crm-app header.crm-topbar::before { display: none; }
