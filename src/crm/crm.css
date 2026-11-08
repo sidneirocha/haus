@@ -30,3 +30,13 @@
   isolation: isolate;
 }
 .crm-app header.crm-topbar::before { display: none; }
+.crm-public-page footer.crm-public-footer,
+.crm-public-page .crm-public-shell > footer {
+  position: static;
+  inset: auto;
+  width: auto;
+  z-index: auto;
+  left: auto;
+  right: auto;
+  bottom: auto;
+}
