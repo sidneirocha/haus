@@ -5,7 +5,11 @@ import { CrmRoute } from './crm/CrmApp'
 const sitePath = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`
 const assetPath = (path: string) => sitePath(path)
 const contactEndpoint = 'https://script.google.com/macros/s/AKfycbxMvjlSDTsoULPbuTwLVyq3jqyYjm7hEQi5RZzJ4YQ2W0mqmA5nkj1bu8pFU6qXGjlF/exec'
+const turnstileSiteKey = '0x4AAAAAAF44qFvYoA1f5L7m'
 const createRequestId = () => `haus-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+
+type TurnstileApi = { render: (container: HTMLElement, options: { sitekey: string; callback: (token: string) => void; 'expired-callback': () => void; 'error-callback': () => void }) => string; reset: (widgetId: string) => void; remove: (widgetId: string) => void }
+declare global { interface Window { turnstile?: TurnstileApi } }
 const currentPath = () => {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '')
   const pathname = window.location.pathname
@@ -374,7 +378,30 @@ function Cases() {
 
 function Contact() {
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
+  const [turnstileToken, setTurnstileToken] = useState('')
+  const turnstileContainer = useRef<HTMLDivElement>(null)
+  const turnstileWidget = useRef<string | null>(null)
   const formStartedAt = useRef(Date.now())
+  useEffect(() => {
+    const renderWidget = () => {
+      if (!turnstileContainer.current || !window.turnstile || turnstileWidget.current) return
+      turnstileWidget.current = window.turnstile.render(turnstileContainer.current, {
+        sitekey: turnstileSiteKey,
+        callback: token => setTurnstileToken(token),
+        'expired-callback': () => setTurnstileToken(''),
+        'error-callback': () => setTurnstileToken(''),
+      })
+    }
+    if (window.turnstile) renderWidget()
+    else {
+      const existing = document.querySelector('script[data-turnstile]') as HTMLScriptElement | null
+      const script = existing || document.createElement('script')
+      if (!existing) { script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'; script.async = true; script.defer = true; script.dataset.turnstile = 'true'; document.head.appendChild(script) }
+      script.addEventListener('load', renderWidget)
+      return () => script.removeEventListener('load', renderWidget)
+    }
+    return () => { if (turnstileWidget.current && window.turnstile) { window.turnstile.remove(turnstileWidget.current); turnstileWidget.current = null } }
+  }, [])
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = event.currentTarget
@@ -382,14 +409,16 @@ function Contact() {
     const honeypot = String(formData.get('website') || '').trim()
     const lastSubmission = Number(window.sessionStorage.getItem('haus-last-contact-submit') || 0)
     const elapsed = Date.now() - formStartedAt.current
-    if (honeypot || elapsed < 1800 || Date.now() - lastSubmission < 60000) {
+    if (honeypot || elapsed < 1800 || Date.now() - lastSubmission < 60000 || !turnstileToken) {
       setStatus('error')
       return
     }
     const payload = {
+      action: 'contact.create',
       nome: String(formData.get('nome') || ''),
       email: String(formData.get('email') || ''),
       mensagem: String(formData.get('mensagem') || ''),
+      turnstileToken,
       requestId: createRequestId(),
     }
     setStatus('sending')
@@ -403,6 +432,8 @@ function Contact() {
         body: JSON.stringify(payload),
       })
       form.reset()
+      setTurnstileToken('')
+      if (turnstileWidget.current && window.turnstile) window.turnstile.reset(turnstileWidget.current)
       window.sessionStorage.setItem('haus-last-contact-submit', String(Date.now()))
       setStatus('success')
     } catch {
@@ -424,6 +455,7 @@ function Contact() {
         <label>Nome<input name="nome" type="text" placeholder="Seu nome" minLength={2} required /></label>
         <label>E-mail<input name="email" type="email" placeholder="voce@empresa.com" required /></label>
         <label>Fale sobre seu projeto<textarea name="mensagem" placeholder="Como podemos ajudar?" rows={5} minLength={12} required /></label>
+        <div ref={turnstileContainer} className="contact-turnstile" aria-label="Verificação antispam" />
         <button type="submit" disabled={status === 'sending'}>{status === 'success' ? 'Mensagem enviada ✓' : status === 'sending' ? 'Enviando…' : status === 'error' ? 'Tentar novamente ↗' : 'Enviar mensagem ↗'}</button>
         {status === 'error' && <p className="contact-form-status" role="alert">Não foi possível enviar agora. Tente novamente.</p>}
         {status === 'success' && <p className="contact-form-status" role="status">Recebemos sua mensagem e entraremos em contato.</p>}
@@ -551,4 +583,4 @@ function Admin() {
   return <div className="admin-shell"><div className="admin-top"><Logo /><a href={sitePath('/')}>Voltar para o site</a></div><div className="admin-content"><div className="admin-heading"><p className="eyebrow">Haus / Admin</p><h1>ParallaxMarquee</h1><p>Gerencie os projetos e o movimento da Home.</p></div><div className="admin-grid"><section className="panel"><h2>Cards</h2>{cards.map(c => <div className="card-row" key={c.id}><img src={assetPath(c.image)} alt="" /><label><span>{c.id} — título</span><input value={c.title} onChange={e => update(c.id, { title: e.target.value })} /></label><label><span>Profundidade</span><input type="number" value={c.depth} onChange={e => update(c.id, { depth: Number(e.target.value) })} /></label><button className={c.active ? 'toggle active' : 'toggle'} onClick={() => update(c.id, { active: !c.active })}>{c.active ? 'Ativo' : 'Off'}</button></div>)}</section><section className="panel settings"><h2>Animação</h2><label><span>Velocidade <b>{settings.speed}</b></span><input type="range" min="0" max="5" step="0.1" value={settings.speed} onChange={e => setSettings({ ...settings, speed: Number(e.target.value) })} /></label><label><span>Direção</span><select value={settings.direction} onChange={e => setSettings({ ...settings, direction: e.target.value as Settings['direction'] })}><option value="left">Esquerda</option><option value="right">Direita</option></select></label><label><span>Largura <b>{settings.cardWidth}px</b></span><input type="range" min="220" max="520" value={settings.cardWidth} onChange={e => setSettings({ ...settings, cardWidth: Number(e.target.value) })} /></label><label><span>Altura <b>{settings.cardHeight}px</b></span><input type="range" min="150" max="320" value={settings.cardHeight} onChange={e => setSettings({ ...settings, cardHeight: Number(e.target.value) })} /></label><label className="check"><input type="checkbox" checked={settings.flow} onChange={e => setSettings({ ...settings, flow: e.target.checked })} /> Flow vertical</label><label className="check"><input type="checkbox" checked={settings.wheel} onChange={e => setSettings({ ...settings, wheel: e.target.checked })} /> Wheel scroll</label><label className="check"><input type="checkbox" checked={settings.dof} onChange={e => setSettings({ ...settings, dof: e.target.checked })} /> Depth of field</label></section></div><div className="admin-actions"><button onClick={reset}>Restaurar padrão</button><button className="primary" onClick={save}>{saved ? 'Salvo ✓' : 'Salvar alterações'}</button></div></div></div>
 }
 
-export function App() { const [cards] = useState(loadCards); const [settings] = useState(() => load('haus-settings', defaultSettings)); const path = currentPath(); if (path === '/crm' || path.startsWith('/crm/') || path.startsWith('/orcamento/')) return <CrmRoute />; let content: ReactElement; if (path === '/admin') content = <Admin />; else if (path === '/cases') content = <Cases />; else if (path === '/contato') content = <Contact />; else if (path === '/sobre') content = <About />; else content = <Home cards={cards} settings={settings} />; return <><PageTransition />{content}{path !== '/admin' && <FloatingActions />}</> }
+export function App() { const [cards] = useState(loadCards); const [settings] = useState(() => load('haus-settings', defaultSettings)); const path = currentPath(); if (path === '/crm' || path.startsWith('/crm/') || path.startsWith('/orcamento/') || path.startsWith('/contrato/')) return <CrmRoute />; let content: ReactElement; if (path === '/admin') content = <Admin />; else if (path === '/cases') content = <Cases />; else if (path === '/contato') content = <Contact />; else if (path === '/sobre') content = <About />; else content = <Home cards={cards} settings={settings} />; return <><PageTransition />{content}{path !== '/admin' && <FloatingActions />}</> }

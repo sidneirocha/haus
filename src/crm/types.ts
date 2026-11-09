@@ -1,8 +1,19 @@
-export type ProjectStatus = 'Briefing' | 'Em produção' | 'Em revisão' | 'Concluído'
-export type QuoteStatus = 'Rascunho' | 'Publicado' | 'Aceito' | 'Recusado'
+export type ProjectStatus = string
+export type QuoteStatus = 'Rascunho' | 'Publicado' | 'Aceito' | 'Recusado' | 'Expirado'
 export type InstallmentStatus = 'Pendente' | 'Pago' | 'Atrasado'
 export type FinancialType = 'Entrada' | 'Saída' | 'Custo'
 export type FinancialStatus = 'Pago' | 'Recebido' | 'Pendente'
+export type FinancialRecurrence = 'Nenhuma' | 'Mensal' | 'Trimestral' | 'Anual'
+export type ContractStatus = 'Rascunho' | 'Enviado' | 'Visualizado' | 'Assinado' | 'Expirado' | 'Cancelado'
+export const SERVICE_CATEGORIES = ['Web', 'Produto', 'Suporte', 'Infra', 'Estratégia', 'Branding'] as const
+
+export type ProjectSolution = {
+  id: string
+  serviceId?: string
+  name: string
+  billing: 'Uma vez' | 'Mensal' | 'Anual'
+  value: number
+}
 
 export type Client = {
   id: string
@@ -27,6 +38,7 @@ export type Project = {
   upsellDate: string
   value: number
   notes: string
+  solutions?: ProjectSolution[]
 }
 
 export type Service = {
@@ -60,6 +72,63 @@ export type Quote = {
   signedAt?: string
 }
 
+export type ContractModel = {
+  id: string
+  name: string
+  description: string
+  content: string
+  version: number
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type ContractEvent = {
+  id: string
+  contractId: string
+  type: 'Criado' | 'Atualizado' | 'Publicado' | 'Visualizado' | 'Assinado' | 'Cancelado'
+  occurredAt: string
+  actor: string
+  metadata?: string
+}
+
+export type Contract = {
+  id: string
+  token: string
+  clientId: string
+  clientName: string
+  company: string
+  projectId?: string
+  projectName?: string
+  quoteId?: string
+  modelId: string
+  modelName: string
+  title: string
+  content: string
+  status: ContractStatus
+  createdAt: string
+  updatedAt: string
+  expiresAt: string
+  signedName?: string
+  signedEmail?: string
+  signerDocument?: string
+  signerIp?: string
+  signedAt?: string
+  events: ContractEvent[]
+}
+
+export type AiDraft = {
+  id: string
+  briefing: string
+  clientId?: string
+  clientName?: string
+  status: 'Rascunho' | 'Aprovado' | 'Descartado'
+  result: { items: QuoteItem[]; notes: string; paymentTerms: string; alerts: string[] }
+  model?: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type FinancialEntry = {
   id: string
   date: string
@@ -68,6 +137,8 @@ export type FinancialEntry = {
   category: string
   amount: number
   status: FinancialStatus
+  recurrence?: FinancialRecurrence
+  nextDueDate?: string
   clientId?: string
   clientName?: string
   projectId?: string
@@ -81,4 +152,7 @@ export type DashboardData = {
   services: Service[]
   quotes: Quote[]
   finances: FinancialEntry[]
+  contractModels: ContractModel[]
+  contracts: Contract[]
+  aiDrafts: AiDraft[]
 }
