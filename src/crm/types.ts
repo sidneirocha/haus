@@ -39,6 +39,56 @@ export type Project = {
   value: number
   notes: string
   solutions?: ProjectSolution[]
+  quoteId?: string
+  quoteToken?: string
+  sourceStatus?: QuoteStatus
+  epicKey?: string
+}
+
+export type WorkStatus = 'Backlog' | 'Em andamento' | 'Em revisão' | 'Concluído' | 'Bloqueado'
+
+export type Story = {
+  id: string
+  projectId: string
+  quoteItemId?: string
+  serviceId?: string
+  title: string
+  description: string
+  status: WorkStatus
+  priority: string
+  assignee: string
+  startDate: string
+  dueDate: string
+  position: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type Subtask = {
+  id: string
+  storyId: string
+  title: string
+  description: string
+  status: WorkStatus
+  priority: string
+  assignee: string
+  startDate: string
+  dueDate: string
+  position: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type Activity = {
+  id: string
+  entityType: 'project' | 'story' | 'subtask'
+  entityId: string
+  type: 'comment' | 'link' | 'status' | 'system'
+  message: string
+  url?: string
+  author: string
+  createdAt: string
+  updatedAt?: string
 }
 
 export type Service = {
@@ -68,6 +118,7 @@ export type Quote = {
   pixKey: string
   paymentUrl: string
   installments: Installment[]
+  projectId?: string
   signedName?: string
   signedAt?: string
 }
@@ -162,4 +213,7 @@ export type DashboardData = {
   contractModels: ContractModel[]
   contracts: Contract[]
   aiDrafts: AiDraft[]
+  stories?: Story[]
+  subtasks?: Subtask[]
+  activities?: Activity[]
 }

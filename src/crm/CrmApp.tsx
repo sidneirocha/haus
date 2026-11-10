@@ -46,7 +46,7 @@ import {
   useToast,
 } from "./Toast";
 import { EditProject } from "./EditProject";
-import { NewProjectWithSolutions } from "./NewProjectWithSolutions";
+import { NewProjectFromQuote } from "./NewProjectFromQuote";
 import { NewQuoteWithClient } from "./NewQuoteWithClient";
 import { InlineServiceCreator } from "./InlineServiceCreator";
 import { QuoteDetailEditor } from "./QuoteDetailEditor";
@@ -1295,6 +1295,7 @@ function Projects({
       {selected && (
         <EditProject
           project={selected}
+          data={data}
           clients={data.clients}
           services={data.services}
           stages={stages}
@@ -3801,12 +3802,10 @@ export function CrmApp() {
             <NewClient close={() => setModal(null)} reload={reload} />
           )}
           {modal === "project" && (
-            <NewProjectWithSolutions
+            <NewProjectFromQuote
               close={() => setModal(null)}
               reload={reload}
-              clients={data.clients}
-              services={data.services}
-              stages={stages}
+              data={data}
             />
           )}
           {modal === "service" && (

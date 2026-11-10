@@ -6,9 +6,11 @@
  */
 const SHEETS = {
   Clientes: ['id', 'name', 'company', 'email', 'phone', 'notes', 'createdAt', 'updatedAt'],
-  Projetos: ['id', 'name', 'clientId', 'clientName', 'status', 'startDate', 'dueDate', 'nextAction', 'upsellDate', 'value', 'notes', 'solutions', 'createdAt', 'updatedAt'],
+  Projetos: ['id', 'name', 'clientId', 'clientName', 'status', 'startDate', 'dueDate', 'nextAction', 'upsellDate', 'value', 'notes', 'solutions', 'quoteId', 'quoteToken', 'sourceStatus', 'epicKey', 'createdAt', 'updatedAt'],
+  Historias: ['id', 'projectId', 'quoteItemId', 'serviceId', 'title', 'description', 'status', 'priority', 'assignee', 'startDate', 'dueDate', 'position', 'createdAt', 'updatedAt'],
+  Subtarefas: ['id', 'storyId', 'title', 'description', 'status', 'priority', 'assignee', 'startDate', 'dueDate', 'position', 'createdAt', 'updatedAt'],
   Servicos: ['id', 'name', 'description', 'category', 'price', 'billing', 'active', 'createdAt', 'updatedAt'],
-  Orcamentos: ['id', 'token', 'clientId', 'clientName', 'company', 'status', 'createdAt', 'expiresAt', 'notes', 'pixKey', 'paymentUrl', 'signedName', 'signedAt', 'updatedAt'],
+  Orcamentos: ['id', 'token', 'clientId', 'clientName', 'company', 'status', 'createdAt', 'expiresAt', 'notes', 'pixKey', 'paymentUrl', 'projectId', 'signedName', 'signedAt', 'updatedAt'],
   Itens_Orcamento: ['id', 'quoteId', 'serviceId', 'name', 'quantity', 'price', 'billing'],
   Parcelas: ['id', 'quoteId', 'dueDate', 'amount', 'paymentUrl', 'status', 'paidAt'],
   Lancamentos_Financeiros: ['id', 'date', 'description', 'type', 'category', 'amount', 'status', 'recurrence', 'nextDueDate', 'recurrenceEndDate', 'recurrenceStatuses', 'clientId', 'clientName', 'projectId', 'projectName', 'notes', 'createdAt', 'updatedAt'],
@@ -16,7 +18,7 @@ const SHEETS = {
   Contratos: ['id', 'token', 'clientId', 'clientName', 'company', 'projectId', 'projectName', 'quoteId', 'modelId', 'modelName', 'title', 'content', 'status', 'createdAt', 'updatedAt', 'expiresAt', 'signedName', 'signedEmail', 'signerDocument', 'signerIp', 'signedAt', 'clientEmail', 'clientPhone', 'signatureHash'],
   Eventos_Contrato: ['id', 'contractId', 'type', 'occurredAt', 'actor', 'metadata'],
   AI_Rascunhos: ['id', 'briefing', 'clientId', 'clientName', 'status', 'result', 'model', 'createdAt', 'updatedAt'],
-  Atividades: ['id', 'type', 'recordId', 'message', 'createdAt'],
+  Atividades: ['id', 'entityType', 'entityId', 'type', 'message', 'url', 'author', 'createdAt', 'updatedAt'],
   Configuracoes: ['key', 'value'],
   Form_Responses: ['timestamp', 'nome', 'email', 'mensagem', 'requestId', 'turnstileHostname']
 };
@@ -77,6 +79,17 @@ function dispatchAction_(action, body) {
   if (action === 'client.update') return updateRow_('Clientes', body);
   if (action === 'client.delete') return deleteClient_(body);
   if (action === 'project.create') return createRow_('Projetos', body);
+  if (action === 'project.fromQuote') return createProjectFromQuote_(body);
+  if (action === 'stories') return rows_('Historias').filter(function(item) { return !body.projectId || item.projectId === body.projectId; });
+  if (action === 'story.create') return createStory_(body);
+  if (action === 'story.update') return updateRow_('Historias', body);
+  if (action === 'story.delete') return deleteRow_('Historias', body);
+  if (action === 'subtasks') return rows_('Subtarefas').filter(function(item) { return !body.storyId || item.storyId === body.storyId; });
+  if (action === 'subtask.create') return createSubtask_(body);
+  if (action === 'subtask.update') return updateRow_('Subtarefas', body);
+  if (action === 'subtask.delete') return deleteRow_('Subtarefas', body);
+  if (action === 'activities') return rows_('Atividades').filter(function(item) { return !body.entityId || (item.entityType === body.entityType && item.entityId === body.entityId); });
+  if (action === 'activity.create') return createActivity_(body);
   if (action === 'project.status') return updateProjectStatus_(body);
   if (action === 'project.update') return updateRow_('Projetos', body);
   if (action === 'project.delete') return deleteRow_('Projetos', body);
@@ -194,6 +207,12 @@ function sheet_(name) {
       : [];
     var hasHeader = headerValues.some(function(value) { return String(value || '').trim() !== ''; });
     if (!hasHeader) sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+    else {
+      var normalizedHeaders = headerValues.map(function(value) { return String(value || '').trim(); });
+      expectedHeaders.forEach(function(header) {
+        if (normalizedHeaders.indexOf(header) < 0) { sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header); normalizedHeaders.push(header); }
+      });
+    }
   }
   return sheet;
 }
@@ -208,7 +227,7 @@ function createRow_(name, body) {
 }
 function dashboard_() {
   syncExpiredQuotes_();
-  return { clients: rows_('Clientes'), projects: rows_('Projetos'), services: rows_('Servicos'), quotes: quotes_(), finances: rows_('Lancamentos_Financeiros'), contractModels: rows_('Modelos_Contrato'), contracts: contracts_(), aiDrafts: aiDrafts_() };
+  return { clients: rows_('Clientes'), projects: rows_('Projetos'), services: rows_('Servicos'), quotes: quotes_(), finances: rows_('Lancamentos_Financeiros'), contractModels: rows_('Modelos_Contrato'), contracts: contracts_(), aiDrafts: aiDrafts_(), stories: rows_('Historias'), subtasks: rows_('Subtarefas'), activities: rows_('Atividades') };
 }
 function dateOnlyValue_(value) {
   if (!value) return null;
@@ -420,6 +439,52 @@ function stopFinanceRecurrence_(body) { if (!body.id || !body.fromDate) throw ne
 function settleFinanceOccurrence_(body) { if (!body.id || !body.occurrenceDate) throw new Error('Ocorrência inválida.'); var entry = rows_('Lancamentos_Financeiros').filter(function(item) { return item.id === body.id; })[0]; if (!entry) throw new Error('Lançamento não encontrado.'); var statuses = entry.recurrenceStatuses || {}; statuses[String(body.occurrenceDate).slice(0, 10)] = entry.type === 'Entrada' ? 'Recebido' : 'Pago'; updateRow_('Lancamentos_Financeiros', { id: body.id, recurrenceStatuses: JSON.stringify(statuses) }); return rows_('Lancamentos_Financeiros').filter(function(item) { return item.id === body.id; })[0]; }
 function settleFinance_(body) { if (!body.id) throw new Error('Lançamento inválido.'); const sheet = sheet_('Lancamentos_Financeiros'); const values = sheet.getDataRange().getValues(); const headers = values[0]; const rowIndex = values.findIndex(function(row) { return row[headers.indexOf('id')] === body.id; }); if (rowIndex < 1) throw new Error('Lançamento não encontrado.'); const type = values[rowIndex][headers.indexOf('type')]; sheet.getRange(rowIndex + 1, headers.indexOf('status') + 1).setValue(type === 'Entrada' ? 'Recebido' : 'Pago'); sheet.getRange(rowIndex + 1, headers.indexOf('updatedAt') + 1).setValue(now_()); return rows_('Lancamentos_Financeiros').filter(function(item) { return item.id === body.id; })[0]; }
 function updateProjectStatus_(body) { if (!body.id || !String(body.status || '').trim()) throw new Error('Status de projeto inválido.'); const sheet = sheet_('Projetos'); const values = sheet.getDataRange().getValues(); const headers = values[0]; const rowIndex = values.findIndex(function(row) { return row[headers.indexOf('id')] === body.id; }); if (rowIndex < 1) throw new Error('Projeto não encontrado.'); sheet.getRange(rowIndex + 1, headers.indexOf('status') + 1).setValue(String(body.status).trim()); sheet.getRange(rowIndex + 1, headers.indexOf('updatedAt') + 1).setValue(now_()); return rows_('Projetos').filter(function(item) { return item.id === body.id; })[0]; }
+function createProjectFromQuote_(body) {
+  if (!body.quoteId) throw new Error('Selecione um orçamento.');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  var project = null; var createdStoryIds = [];
+  try {
+    var quote = quotes_().filter(function(item) { return item.id === body.quoteId; })[0];
+    if (!quote) throw new Error('Orçamento não encontrado.');
+    var existing = rows_('Projetos').filter(function(item) { return item.quoteId === quote.id; })[0];
+    if (existing) return { project: existing, stories: rows_('Historias').filter(function(item) { return item.projectId === existing.id; }), duplicate: true };
+    var stamp = now_();
+    project = append_('Projetos', {
+      id: id_('project'), name: quote.company || quote.clientName || 'Projeto sem nome', clientId: quote.clientId || '', clientName: quote.clientName || quote.company || '',
+      status: 'Briefing', startDate: stamp.slice(0, 10), dueDate: quote.expiresAt || '', nextAction: 'Revisar histórias do orçamento', upsellDate: '',
+      value: (quote.items || []).reduce(function(total, item) { return total + Number(item.price || 0) * Number(item.quantity || 1); }, 0),
+      notes: 'Projeto criado a partir do orçamento ' + (quote.token || '') + '.', solutions: JSON.stringify((quote.items || []).map(function(item, index) { return { id: 'solution-' + index + '-' + item.serviceId, serviceId: item.serviceId || '', name: item.name || '', billing: item.billing || 'Uma vez', value: Number(item.price || 0) * Number(item.quantity || 1) }; })),
+      quoteId: quote.id, quoteToken: quote.token || '', sourceStatus: quote.status || 'Rascunho', epicKey: 'EPIC-' + projectId_(quote.id), createdAt: stamp, updatedAt: stamp
+    });
+    var stories = (quote.items || []).map(function(item, index) {
+      var story = createRow_('Historias', { projectId: project.id, quoteItemId: item.id || '', serviceId: item.serviceId || '', title: item.name || 'História ' + (index + 1), description: item.description || '', status: 'Backlog', priority: 'P3 - Normal', assignee: '', startDate: project.startDate, dueDate: project.dueDate, position: index });
+      createdStoryIds.push(story.id); return story;
+    });
+    updateRow_('Orcamentos', { id: quote.id, projectId: project.id });
+    createRow_('Atividades', { entityType: 'project', entityId: project.id, type: 'system', message: 'Projeto criado a partir do orçamento.', url: '', author: 'Haus' });
+    return { project: project, stories: stories };
+  } catch (error) {
+    createdStoryIds.forEach(function(id) { try { deleteRow_('Historias', { id: id }); } catch (ignore) {} });
+    if (project) { try { deleteRow_('Projetos', { id: project.id }); } catch (ignoreProject) {} }
+    throw error;
+  } finally { lock.releaseLock(); }
+}
+function projectId_(quoteId) { return String(quoteId || '').replace(/[^a-zA-Z0-9]/g, '').slice(-8) || Utilities.getUuid().slice(0, 8); }
+function createStory_(body) {
+  if (!body.projectId || !String(body.title || '').trim()) throw new Error('Projeto e título da história são obrigatórios.');
+  if (!rows_('Projetos').some(function(item) { return item.id === body.projectId; })) throw new Error('Projeto não encontrado.');
+  return createRow_('Historias', { projectId: body.projectId, quoteItemId: body.quoteItemId || '', serviceId: body.serviceId || '', title: String(body.title).trim(), description: body.description || '', status: body.status || 'Backlog', priority: body.priority || 'P3 - Normal', assignee: body.assignee || '', startDate: body.startDate || '', dueDate: body.dueDate || '', position: Number(body.position || 0) });
+}
+function createSubtask_(body) {
+  if (!body.storyId || !String(body.title || '').trim()) throw new Error('História e título da subtarefa são obrigatórios.');
+  if (!rows_('Historias').some(function(item) { return item.id === body.storyId; })) throw new Error('História não encontrada.');
+  return createRow_('Subtarefas', { storyId: body.storyId, title: String(body.title).trim(), description: body.description || '', status: body.status || 'Backlog', priority: body.priority || 'P3 - Normal', assignee: body.assignee || '', startDate: body.startDate || '', dueDate: body.dueDate || '', position: Number(body.position || 0) });
+}
+function createActivity_(body) {
+  if (!body.entityType || !body.entityId || (!String(body.message || '').trim() && !String(body.url || '').trim())) throw new Error('Atividade sem conteúdo.');
+  return createRow_('Atividades', { entityType: body.entityType, entityId: body.entityId, type: body.type || (body.url ? 'link' : 'comment'), message: String(body.message || '').trim(), url: String(body.url || '').trim(), author: String(body.author || 'Haus').trim() });
+}
 function createContact_(body) { if (!body.nome || !body.email || !body.mensagem || !body.turnstileToken) throw new Error('Nome, e-mail, mensagem e verificação antispam são obrigatórios.'); var verification = verifyTurnstile_(body.turnstileToken); if (!verification.success) throw new Error('Verificação antispam inválida.'); var sheet = spreadsheet_().getSheetByName('Form_Responses') || spreadsheet_().insertSheet('Form_Responses'); if (sheet.getLastRow() === 0) sheet.getRange(1, 1, 1, SHEETS.Form_Responses.length).setValues([SHEETS.Form_Responses]); var item = { timestamp: now_(), nome: String(body.nome).trim(), email: String(body.email).trim(), mensagem: String(body.mensagem).trim(), requestId: body.requestId || '', turnstileHostname: verification.hostname || '' }; sheet.appendRow(SHEETS.Form_Responses.map(function(header) { return item[header] || ''; })); return { received: true }; }
 function verifyTurnstile_(token) { var secret = PropertiesService.getScriptProperties().getProperty('TURNSTILE_SECRET'); if (!secret) throw new Error('Configure TURNSTILE_SECRET nas propriedades do script.'); var response = UrlFetchApp.fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'post', contentType: 'application/json', payload: JSON.stringify({ secret: secret, response: token }), muteHttpExceptions: true }); return JSON.parse(response.getContentText() || '{}'); }
  function updateRow_(name, body) { if (!body.id) throw new Error('Registro inválido.'); var sheet = sheet_(name); var values = sheet.getDataRange().getValues(); var headers = values[0]; var rowIndex = values.findIndex(function(row) { return row[headers.indexOf('id')] === body.id; }); if (rowIndex < 1) throw new Error('Registro não encontrado.'); var updated = Object.assign({}, body, { updatedAt: now_() }); delete updated.action; delete updated.adminKey; delete updated.sessionToken; delete updated.id; Object.keys(updated).forEach(function(key) { var col = headers.indexOf(key); if (col >= 0) sheet.getRange(rowIndex + 1, col + 1).setValue(updated[key]); }); return rows_(name).filter(function(item) { return item.id === body.id; })[0]; }

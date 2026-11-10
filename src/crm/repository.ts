@@ -1,5 +1,5 @@
 import { demoData } from './demo-data'
-import type { AiDraft, Client, Contract, ContractModel, DashboardData, FinancialEntry, Installment, Project, Quote, Service } from './types'
+import type { Activity, AiDraft, Client, Contract, ContractModel, DashboardData, FinancialEntry, Installment, Project, Quote, Service, Story, Subtask } from './types'
 import { announce } from './Toast'
 import { clearCrmSession, getCrmSessionToken } from './auth'
 import { recurrenceCutoffBefore } from './finance-utils'
@@ -73,6 +73,9 @@ export const crmRepository = {
       contractModels: response.contractModels ?? [],
       contracts: response.contracts ?? [],
       aiDrafts: response.aiDrafts ?? [],
+      stories: response.stories ?? [],
+      subtasks: response.subtasks ?? [],
+      activities: response.activities ?? [],
     }
   },
   async createClient(input: Omit<Client, 'id' | 'projects' | 'quotes'>) {
@@ -119,6 +122,40 @@ export const crmRepository = {
       return { id }
     }
     return request<{ id: string }>('project.delete', { method: 'POST', body: JSON.stringify({ action: 'project.delete', id }) }).then(result => { announce('Projeto excluído.'); return result })
+  },
+  async createProjectFromQuote(quoteId: string): Promise<{ project: Project; stories: Story[]; duplicate?: boolean }> {
+    if (!quoteId) throw new Error('Selecione um orçamento.')
+    if (!endpoint) {
+      const quote = demoState.quotes.find(item => item.id === quoteId)
+      if (!quote) throw new Error('Orçamento não encontrado.')
+      const existing = demoState.projects.find(item => item.quoteId === quoteId)
+      if (existing) return { project: existing, stories: (demoState.stories ?? []).filter(item => item.projectId === existing.id), duplicate: true }
+      const project: Project = { id: `pro-${Date.now()}`, name: quote.company || quote.clientName, clientId: quote.clientId, clientName: quote.clientName, status: 'Briefing', startDate: new Date().toISOString().slice(0, 10), dueDate: quote.expiresAt, nextAction: 'Revisar histórias do orçamento', upsellDate: '', value: quote.items.reduce((sum, item) => sum + item.price * item.quantity, 0), notes: `Projeto criado a partir do orçamento ${quote.token}.`, solutions: quote.items.map((item, index) => ({ id: `solution-${index}-${item.serviceId}`, serviceId: item.serviceId, name: item.name, billing: item.billing, value: item.price * item.quantity })), quoteId: quote.id, quoteToken: quote.token, sourceStatus: quote.status, epicKey: `EPIC-${quote.id.slice(-8)}` }
+      const stories: Story[] = quote.items.map((item, index) => ({ id: `story-${Date.now()}-${index}`, projectId: project.id, quoteItemId: item.serviceId, serviceId: item.serviceId, title: item.name, description: item.description ?? '', status: 'Backlog', priority: 'P3 - Normal', assignee: '', startDate: project.startDate, dueDate: project.dueDate, position: index, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }))
+      demoState.projects.unshift(project); demoState.stories = [...(demoState.stories ?? []), ...stories]; quote.projectId = project.id; demoState.activities = [...(demoState.activities ?? []), { id: `activity-${Date.now()}`, entityType: 'project', entityId: project.id, type: 'system', message: 'Projeto criado a partir do orçamento.', author: 'Haus', createdAt: new Date().toISOString() }]
+      persistDemoState(); announce('Projeto criado a partir do orçamento.'); return { project, stories }
+    }
+    return request<{ project: Project; stories: Story[]; duplicate?: boolean }>('project.fromQuote', { method: 'POST', body: JSON.stringify({ action: 'project.fromQuote', quoteId }) }).then(result => { announce(result.duplicate ? 'Este orçamento já possui um projeto.' : 'Projeto criado a partir do orçamento.'); return result })
+  },
+  async createStory(input: Omit<Story, 'id' | 'createdAt' | 'updatedAt'>) {
+    if (!endpoint) { const story = { ...input, id: `story-${Date.now()}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; demoState.stories = [...(demoState.stories ?? []), story]; persistDemoState(); return story }
+    return request<Story>('story.create', { method: 'POST', body: JSON.stringify({ action: 'story.create', ...input }) })
+  },
+  async updateStory(id: string, input: Omit<Story, 'id' | 'createdAt' | 'updatedAt'>) {
+    if (!endpoint) { const story = (demoState.stories ?? []).find(item => item.id === id); if (!story) throw new Error('História não encontrada.'); Object.assign(story, input, { updatedAt: new Date().toISOString() }); persistDemoState(); return story }
+    return request<Story>('story.update', { method: 'POST', body: JSON.stringify({ action: 'story.update', id, ...input }) })
+  },
+  async createSubtask(input: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt'>) {
+    if (!endpoint) { const subtask = { ...input, id: `subtask-${Date.now()}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; demoState.subtasks = [...(demoState.subtasks ?? []), subtask]; persistDemoState(); return subtask }
+    return request<Subtask>('subtask.create', { method: 'POST', body: JSON.stringify({ action: 'subtask.create', ...input }) })
+  },
+  async updateSubtask(id: string, input: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt'>) {
+    if (!endpoint) { const subtask = (demoState.subtasks ?? []).find(item => item.id === id); if (!subtask) throw new Error('Subtarefa não encontrada.'); Object.assign(subtask, input, { updatedAt: new Date().toISOString() }); persistDemoState(); return subtask }
+    return request<Subtask>('subtask.update', { method: 'POST', body: JSON.stringify({ action: 'subtask.update', id, ...input }) })
+  },
+  async createActivity(input: Omit<Activity, 'id' | 'createdAt' | 'updatedAt' | 'author'> & { author?: string }) {
+    if (!endpoint) { const activity = { ...input, id: `activity-${Date.now()}`, author: input.author ?? 'Haus', createdAt: new Date().toISOString() }; demoState.activities = [...(demoState.activities ?? []), activity]; persistDemoState(); return activity }
+    return request<Activity>('activity.create', { method: 'POST', body: JSON.stringify({ action: 'activity.create', ...input }) })
   },
   async createService(input: Omit<Service, 'id'>) {
     if (!endpoint) { const service = { ...input, id: `srv-${Date.now()}` }; demoState.services.unshift(service); persistDemoState(); announce('Serviço criado.'); return service }
