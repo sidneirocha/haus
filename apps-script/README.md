@@ -30,6 +30,6 @@
 
 Além das abas operacionais, `setupSheets()` cria `Modelos_Contrato`, `Contratos`, `Eventos_Contrato` e `AI_Rascunhos`. Os contratos têm fluxo `Rascunho → Enviado → Visualizado → Assinado`, registro de eventos e validação básica de nome, e-mail, CPF/CNPJ e consentimento. O aceite é uma assinatura eletrônica simples, sem certificação ICP-Brasil.
 
-O endpoint público aceita `?action=contract&id={token}` para contratos publicados. As mutações internas disponíveis incluem `contract-model.create/update/delete`, `contract.create/update/cancel/delete`, `contract.publish`, `contract.view`, `contract.sign` e `ai.draftQuote`. Contratos assinados ficam imutáveis; rascunhos e cancelados podem ser excluídos. A ação de IA apenas prepara um rascunho; a publicação continua dependendo de revisão humana.
+O endpoint público aceita `?action=contract&id={token}` para contratos publicados. As mutações internas disponíveis incluem `contract-model.create/update/delete`, `contract.create/update/cancel/delete/clone`, `contract.publish`, `contract.view`, `contract.sign` e `ai.draftQuote`. Contratos assinados não podem ser editados, mas podem ser excluídos explicitamente junto com sua trilha de eventos; a clonagem cria um novo rascunho. A ação de IA apenas prepara um rascunho; a publicação continua dependendo de revisão humana.
 
 O contrato de resposta é `{ ok: true, data }` ou `{ ok: false, error }`.

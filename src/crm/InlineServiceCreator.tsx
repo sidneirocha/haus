@@ -6,6 +6,7 @@ import { useToast } from './Toast'
 
 export function InlineServiceCreator({ onCreated, onCancel }: { onCreated: (service: Service) => void; onCancel: () => void }) {
   const [form, setForm] = useState({ name: '', description: '', category: 'Web', price: '', billing: 'Uma vez' as Service['billing'] })
+  const [customCategory, setCustomCategory] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const { notify } = useToast()
@@ -14,8 +15,10 @@ export function InlineServiceCreator({ onCreated, onCancel }: { onCreated: (serv
     const price = parseBRL(form.price)
     if (!form.name.trim() || price <= 0) { setError('Informe nome e um preço maior que zero.'); return }
     setBusy(true); setError('')
+    const category = form.category === '__new__' ? customCategory.trim() : form.category
+    if (!category) { setError('Informe o nome da nova categoria.'); return }
     try {
-      const service = await crmRepository.createService({ ...form, name: form.name.trim(), price, active: true })
+      const service = await crmRepository.createService({ ...form, name: form.name.trim(), category, price, active: true })
       notify('Serviço criado e pronto para adicionar.')
       onCreated(service)
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível criar o serviço.'); notify('Não foi possível criar o serviço.', 'error') }
@@ -26,8 +29,9 @@ export function InlineServiceCreator({ onCreated, onCancel }: { onCreated: (serv
     <strong>Novo serviço rápido</strong>
     <div className="crm-form-row">
       <label className="crm-field"><span>Nome</span><input autoFocus value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} /></label>
-      <label className="crm-field"><span>Categoria</span><select value={form.category} onChange={event => setForm({ ...form, category: event.target.value })}>{SERVICE_CATEGORIES.map(item => <option key={item}>{item}</option>)}</select></label>
+      <label className="crm-field"><span>Categoria</span><select value={form.category} onChange={event => setForm({ ...form, category: event.target.value })}>{SERVICE_CATEGORIES.map(item => <option key={item}>{item}</option>)}<option value="__new__">+ Nova categoria</option></select></label>
     </div>
+    {form.category === '__new__' && <label className="crm-field"><span>Nome da nova categoria</span><input required value={customCategory} onChange={event => setCustomCategory(event.target.value)} placeholder="Ex.: Marketing" /></label>}
     <label className="crm-field"><span>Preço padrão (BRL)</span><input inputMode="decimal" placeholder="R$ 1.200,00" value={form.price} onChange={event => setForm({ ...form, price: event.target.value })} onBlur={() => setForm(current => ({ ...current, price: formatBRL(parseBRL(current.price)) }))} /></label>
     {error && <p className="crm-form-error" role="alert">{error}</p>}
     <div className="crm-form-actions"><button className="crm-button secondary" type="button" onClick={onCancel}>Cancelar</button><button className="crm-button primary" type="button" onClick={() => void save()} disabled={busy}>{busy ? 'Criando…' : 'Criar e adicionar'}</button></div>

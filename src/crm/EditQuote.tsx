@@ -4,6 +4,7 @@ import { crmRepository } from './repository'
 import { InlineServiceCreator } from './InlineServiceCreator'
 import type { DashboardData, Quote, QuoteItem, Service } from './types'
 import { Spinner, useConfirm, useToast } from './Toast'
+import { toInputDate } from './date-utils'
 
 export function EditQuote({ quote, data, close, reload }: { quote: Quote; data: DashboardData; close: () => void; reload: () => void }) {
   const [clientId, setClientId] = useState(quote.clientId)
@@ -11,7 +12,7 @@ export function EditQuote({ quote, data, close, reload }: { quote: Quote; data: 
   const [createdServices, setCreatedServices] = useState<Service[]>([])
   const [serviceToAdd, setServiceToAdd] = useState('')
   const [showServiceCreator, setShowServiceCreator] = useState(false)
-  const [expiresAt, setExpiresAt] = useState(quote.expiresAt)
+  const [expiresAt, setExpiresAt] = useState(toInputDate(quote.expiresAt))
   const [notes, setNotes] = useState(quote.notes)
   const [pixKey, setPixKey] = useState(quote.pixKey)
   const [paymentUrl, setPaymentUrl] = useState(quote.paymentUrl)

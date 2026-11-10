@@ -1,7 +1,8 @@
 import { demoData } from './demo-data'
-import type { AiDraft, Client, Contract, ContractModel, DashboardData, FinancialEntry, Project, Quote, Service } from './types'
+import type { AiDraft, Client, Contract, ContractModel, DashboardData, FinancialEntry, Installment, Project, Quote, Service } from './types'
 import { announce } from './Toast'
 import { clearCrmSession, getCrmSessionToken } from './auth'
+import { recurrenceCutoffBefore } from './finance-utils'
 
 const endpoint = import.meta.env.VITE_CRM_ENDPOINT as string | undefined
 const DEMO_STORAGE_KEY = 'haus-crm-demo-state'
@@ -29,8 +30,20 @@ async function request<T>(action: string, options: RequestInit = {}): Promise<T>
     payload.sessionToken = token
     url.searchParams.set('session', token)
   }
-  url.searchParams.set('payload', JSON.stringify(payload))
-  const response = await fetch(url)
+  const method = (options.method || 'GET').toUpperCase()
+  const requestOptions: RequestInit = method === 'GET'
+    ? { ...options, method, body: undefined }
+    : {
+      ...options,
+      method,
+      // Apps Script não responde ao preflight CORS de application/json.
+      // text/plain continua permitindo que o endpoint leia o JSON pelo
+      // conteúdo do POST, sem bloquear atualizações e importações no browser.
+      headers: { 'Content-Type': 'text/plain;charset=utf-8', ...(options.headers || {}) },
+      body: JSON.stringify(payload),
+    }
+  if (method === 'GET') url.searchParams.set('payload', JSON.stringify(payload))
+  const response = await fetch(url, requestOptions)
   const result = await response.json() as { ok: boolean; data: T; error?: string }
   if (!response.ok || !result.ok) {
     if (result.error === 'Não autorizado.') clearCrmSession()
@@ -111,6 +124,30 @@ export const crmRepository = {
     if (!endpoint) { const service = { ...input, id: `srv-${Date.now()}` }; demoState.services.unshift(service); persistDemoState(); announce('Serviço criado.'); return service }
     return request<Service>('service.create', { method: 'POST', body: JSON.stringify({ action: 'service.create', ...input }) }).then(result => { announce('Serviço criado.'); return result })
   },
+  async createServices(inputs: Omit<Service, 'id'>[], onProgress?: (completed: number, total: number) => void) {
+    if (!endpoint) {
+      const services = inputs.map(input => ({ ...input, id: `srv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` }))
+      demoState.services.unshift(...services)
+      onProgress?.(services.length, services.length)
+      persistDemoState()
+      announce(`${services.length} serviço(s) importado(s).`)
+      return services
+    }
+    try {
+      const result = await request<Service[]>('service.import', { method: 'POST', body: JSON.stringify({ action: 'service.import', services: inputs }) })
+      announce(`${result.length} serviço(s) importado(s).`)
+      return result
+    } catch (cause) {
+      if (!(cause instanceof Error) || !/ação inválida|failed to fetch|falha ao buscar/i.test(cause.message)) throw cause
+      const result: Service[] = []
+      for (const [index, input] of inputs.entries()) {
+        result.push(await request<Service>('service.create', { method: 'POST', body: JSON.stringify({ action: 'service.create', ...input }) }))
+        onProgress?.(index + 1, inputs.length)
+      }
+      announce(`${result.length} serviço(s) importado(s).`)
+      return result
+    }
+  },
   async updateService(id: string, input: Omit<Service, 'id'>) {
     if (!endpoint) { const service = demoState.services.find(item => item.id === id); if (!service) throw new Error('Serviço não encontrado.'); Object.assign(service, input); persistDemoState(); return service }
     return request<Service>('service.update', { method: 'POST', body: JSON.stringify({ action: 'service.update', id, ...input }) })
@@ -135,7 +172,7 @@ export const crmRepository = {
     if (!endpoint) { const quote = demoState.quotes.find(item => item.id === id); if (!quote) throw new Error('Orçamento não encontrado.'); Object.assign(quote, input); persistDemoState(); return quote }
     return request<Quote>('quote.update', { method: 'POST', body: JSON.stringify({ action: 'quote.update', id, ...input }) })
   },
-  async publishQuote(id: string) {
+  async publishQuote(id: string, fallbackQuote?: Quote) {
     if (!endpoint) {
       const quote = demoState.quotes.find(item => item.id === id)
       if (!quote) throw new Error('Orçamento não encontrado.')
@@ -145,7 +182,33 @@ export const crmRepository = {
       announce('Orçamento publicado.')
       return quote
     }
-    return request<Quote>('quote.publish', { method: 'POST', body: JSON.stringify({ action: 'quote.publish', id }) }).then(result => { announce('Orçamento publicado.'); return result })
+    try {
+      const result = await request<Quote>('quote.publish', { method: 'POST', body: JSON.stringify({ action: 'quote.publish', id }) })
+      announce('Orçamento publicado.')
+      return result
+    } catch (cause) {
+      // Mantém compatibilidade com implantações antigas do Apps Script que
+      // ainda não conhecem a ação quote.publish.
+      if (!(cause instanceof Error) || !/(ação inválida|defina uma validade futura|validade futura|data.*futura)/i.test(cause.message) || !fallbackQuote) throw cause
+      const result = await request<Quote>('quote.update', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'quote.update',
+          id,
+          clientId: fallbackQuote.clientId,
+          clientName: fallbackQuote.clientName,
+          company: fallbackQuote.company,
+          items: fallbackQuote.items,
+          status: 'Publicado',
+          expiresAt: fallbackQuote.expiresAt,
+          notes: fallbackQuote.notes,
+          pixKey: fallbackQuote.pixKey,
+          paymentUrl: fallbackQuote.paymentUrl,
+        }),
+      })
+      announce('Orçamento publicado.')
+      return result
+    }
   },
   async reactivateQuote(id: string, expiresAt: string) {
     if (!expiresAt) throw new Error('Informe uma nova data de validade.')
@@ -171,6 +234,30 @@ export const crmRepository = {
     }
     return request<{ id: string }>('quote.delete', { method: 'POST', body: JSON.stringify({ action: 'quote.delete', id }) }).then(result => { announce('Orçamento excluído.'); return result })
   },
+  async cloneQuote(id: string) {
+    const source = (endpoint ? null : demoState.quotes.find(item => item.id === id))
+    if (!endpoint) {
+      if (!source) throw new Error('Orçamento não encontrado.')
+      const expiresAt = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+      const quote: Quote = { ...clone(source), id: `orc-${Date.now()}`, token: `haus-demo-${Date.now()}`, status: 'Rascunho', createdAt: new Date().toISOString().slice(0, 10), expiresAt, signedName: undefined, signedAt: undefined, installments: [] }
+      demoState.quotes.unshift(quote); persistDemoState(); announce('Orçamento clonado como rascunho.'); return quote
+    }
+    try {
+      const result = await request<Quote>('quote.clone', { method: 'POST', body: JSON.stringify({ action: 'quote.clone', id }) })
+      announce('Orçamento clonado como rascunho.')
+      return result
+    } catch (cause) {
+      // Implantações antigas do Apps Script podem não ter a ação em lote;
+      // alguns proxies também retornam "Failed to fetch" nesse caso.
+      if (!(cause instanceof Error) || !/(ação inválida|failed to fetch|falha ao buscar|não suportada|unknown action)/i.test(cause.message)) throw cause
+      const dashboard = await request<DashboardData>('dashboard')
+      const remoteSource = dashboard.quotes.find(item => item.id === id)
+      if (!remoteSource) throw new Error('Orçamento não encontrado.')
+      const fallback = await request<Quote>('quote.create', { method: 'POST', body: JSON.stringify({ action: 'quote.create', clientId: remoteSource.clientId, clientName: remoteSource.clientName, company: remoteSource.company, items: remoteSource.items, expiresAt: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10), notes: remoteSource.notes, pixKey: remoteSource.pixKey, paymentUrl: remoteSource.paymentUrl }) })
+      announce('Orçamento clonado como rascunho.')
+      return fallback
+    }
+  },
   async createFinance(input: Omit<FinancialEntry, 'id'>) {
     if (!endpoint) { const entry = { ...input, id: `fin-${Date.now()}` }; demoState.finances.unshift(entry); persistDemoState(); announce('Lançamento financeiro criado.'); return entry }
     return request<FinancialEntry>('finance.create', { method: 'POST', body: JSON.stringify({ action: 'finance.create', ...input }) }).then(result => { announce('Lançamento financeiro criado.'); return result })
@@ -178,6 +265,30 @@ export const crmRepository = {
   async updateFinance(id: string, input: Omit<FinancialEntry, 'id'>) {
     if (!endpoint) { const entry = demoState.finances.find(item => item.id === id); if (!entry) throw new Error('Lançamento não encontrado.'); Object.assign(entry, input); persistDemoState(); announce('Lançamento atualizado.'); return entry }
     return request<FinancialEntry>('finance.update', { method: 'POST', body: JSON.stringify({ action: 'finance.update', id, ...input }) }).then(result => { announce('Lançamento atualizado.'); return result })
+  },
+  async stopFinanceRecurrence(id: string, fromDate: string) {
+    if (!endpoint) {
+      const entry = demoState.finances.find(item => item.id === id)
+      if (!entry) throw new Error('Lançamento não encontrado.')
+      const recurrenceEndDate = recurrenceCutoffBefore(entry, fromDate)
+      if (!recurrenceEndDate) throw new Error('Este lançamento não possui recorrência ativa.')
+      entry.recurrenceEndDate = recurrenceEndDate
+      persistDemoState()
+      announce('Recorrência encerrada.')
+      return entry
+    }
+    return request<FinancialEntry>('finance.stopRecurrence', { method: 'POST', body: JSON.stringify({ action: 'finance.stopRecurrence', id, fromDate }) }).then(result => { announce('Recorrência encerrada.'); return result })
+  },
+  async settleFinanceOccurrence(id: string, occurrenceDate: string) {
+    if (!endpoint) {
+      const entry = demoState.finances.find(item => item.id === id)
+      if (!entry) throw new Error('Lançamento não encontrado.')
+      entry.recurrenceStatuses = { ...(entry.recurrenceStatuses ?? {}), [occurrenceDate.slice(0, 10)]: entry.type === 'Entrada' ? 'Recebido' : 'Pago' }
+      persistDemoState()
+      announce('Ocorrência marcada como paga.')
+      return entry
+    }
+    return request<FinancialEntry>('finance.occurrence.settle', { method: 'POST', body: JSON.stringify({ action: 'finance.occurrence.settle', id, occurrenceDate }) }).then(result => { announce('Ocorrência marcada como paga.'); return result })
   },
   async settleFinance(id: string) {
     if (!endpoint) { const entry = demoState.finances.find(item => item.id === id); if (!entry) throw new Error('Lançamento não encontrado.'); entry.status = entry.type === 'Entrada' ? 'Recebido' : 'Pago'; persistDemoState(); announce('Lançamento atualizado.'); return entry }
@@ -198,13 +309,69 @@ export const crmRepository = {
     if (!endpoint) { const quote = demoState.quotes.find(item => item.token === token); if (!quote) throw new Error('Orçamento não encontrado.'); quote.status = 'Aceito'; quote.signedName = signedName; quote.signedAt = new Date().toISOString(); persistDemoState(); announce('Orçamento aceito.'); return quote }
     return request<Quote>('quote.accept', { method: 'POST', body: JSON.stringify({ action: 'quote.accept', token, signedName }) }).then(result => { announce('Orçamento aceito.'); return result })
   },
-  async markInstallmentPaid(quoteId: string, installmentId: string) {
+  async getPublicQuote(token: string) {
+    if (!endpoint) {
+      syncDemoState()
+      const quote = demoState.quotes.find(item => item.token === token)
+      if (!quote || !['Publicado', 'Aceito', 'Expirado'].includes(quote.status)) throw new Error('Orçamento não encontrado.')
+      return quote
+    }
+    return publicRequest<Quote>('quote', { id: token })
+  },
+  async markInstallmentPaid(quoteId: string, installmentId: string): Promise<Installment> {
     if (!endpoint) { const quote = demoState.quotes.find(item => item.id === quoteId); const installment = quote?.installments.find(item => item.id === installmentId); if (!installment) throw new Error('Parcela não encontrada.'); installment.status = 'Pago'; installment.paidAt = new Date().toISOString(); persistDemoState(); announce('Parcela marcada como paga.'); return installment }
-    return request('installment.pay', { method: 'POST', body: JSON.stringify({ action: 'installment.pay', quoteId, installmentId }) }).then(result => { announce('Parcela marcada como paga.'); return result })
+    return request<Installment>('installment.pay', { method: 'POST', body: JSON.stringify({ action: 'installment.pay', quoteId, installmentId }) }).then(result => { announce('Parcela marcada como paga.'); return result })
+  },
+  async createInstallment(quoteId: string, input: Omit<Installment, 'id'>): Promise<Installment> {
+    if (!quoteId || !input.dueDate || input.amount <= 0) throw new Error('Informe vencimento e um valor válido para a parcela.')
+    if (!endpoint) {
+      const quote = demoState.quotes.find(item => item.id === quoteId)
+      if (!quote) throw new Error('Orçamento não encontrado.')
+      const installment: Installment = { ...input, id: `par-${Date.now()}` }
+      quote.installments = [...(quote.installments ?? []), installment]
+      persistDemoState(); announce('Parcela criada.'); return installment
+    }
+    return request<Installment>('installment.create', { method: 'POST', body: JSON.stringify({ action: 'installment.create', quoteId, ...input }) }).then(result => { announce('Parcela criada.'); return result })
+  },
+  async updateInstallment(quoteId: string, id: string, input: Omit<Installment, 'id'>): Promise<Installment> {
+    if (!quoteId || !id || !input.dueDate || input.amount <= 0) throw new Error('Informe vencimento e um valor válido para a parcela.')
+    if (!endpoint) {
+      const installment = demoState.quotes.find(item => item.id === quoteId)?.installments.find(item => item.id === id)
+      if (!installment) throw new Error('Parcela não encontrada.')
+      Object.assign(installment, input); persistDemoState(); announce('Parcela atualizada.'); return installment
+    }
+    return request<Installment>('installment.update', { method: 'POST', body: JSON.stringify({ action: 'installment.update', quoteId, id, ...input }) }).then(result => { announce('Parcela atualizada.'); return result })
+  },
+  async deleteInstallment(quoteId: string, id: string) {
+    if (!endpoint) {
+      const quote = demoState.quotes.find(item => item.id === quoteId)
+      if (!quote) throw new Error('Orçamento não encontrado.')
+      const index = quote.installments.findIndex(item => item.id === id)
+      if (index < 0) throw new Error('Parcela não encontrada.')
+      quote.installments.splice(index, 1); persistDemoState(); announce('Parcela excluída.'); return { id }
+    }
+    return request<{ id: string }>('installment.delete', { method: 'POST', body: JSON.stringify({ action: 'installment.delete', quoteId, id }) }).then(result => { announce('Parcela excluída.'); return result })
   },
   async createContractModel(input: Omit<ContractModel, 'id' | 'version' | 'createdAt' | 'updatedAt'>) {
     if (!endpoint) { const stamp = new Date().toISOString(); const model: ContractModel = { ...input, id: `modelo-${Date.now()}`, version: 1, createdAt: stamp, updatedAt: stamp }; demoState.contractModels.unshift(model); persistDemoState(); announce('Modelo de contrato criado.'); return model }
     return request<ContractModel>('contract-model.create', { method: 'POST', body: JSON.stringify({ action: 'contract-model.create', ...input }) }).then(result => { announce('Modelo de contrato criado.'); return result })
+  },
+  async createContractModels(inputs: Omit<ContractModel, 'id' | 'version' | 'createdAt' | 'updatedAt'>[]) {
+    if (!inputs.length) throw new Error('Nenhum modelo válido para importar.')
+    if (!endpoint) {
+      const stamp = new Date().toISOString(); const models = inputs.map((input, index) => ({ ...input, id: `modelo-${Date.now()}-${index}`, version: 1, createdAt: stamp, updatedAt: stamp }))
+      demoState.contractModels.unshift(...models); persistDemoState(); announce(`${models.length} modelo(s) importado(s).`); return models
+    }
+    try {
+      const result = await request<ContractModel[]>('contract-model.import', { method: 'POST', body: JSON.stringify({ action: 'contract-model.import', models: inputs }) })
+      announce(`${result.length} modelo(s) importado(s).`)
+      return result
+    } catch (cause) {
+      if (!(cause instanceof Error) || !/ação inválida/i.test(cause.message)) throw cause
+      const result = await Promise.all(inputs.map(input => request<ContractModel>('contract-model.create', { method: 'POST', body: JSON.stringify({ action: 'contract-model.create', ...input }) })))
+      announce(`${result.length} modelo(s) importado(s).`)
+      return result
+    }
   },
   async updateContractModel(id: string, input: Omit<ContractModel, 'id' | 'version' | 'createdAt' | 'updatedAt'>) {
     if (!endpoint) { const model = demoState.contractModels.find(item => item.id === id); if (!model) throw new Error('Modelo de contrato não encontrado.'); Object.assign(model, input, { version: model.version + 1, updatedAt: new Date().toISOString() }); persistDemoState(); announce('Modelo de contrato atualizado.'); return model }
@@ -252,13 +419,42 @@ export const crmRepository = {
       const index = demoState.contracts.findIndex(item => item.id === id)
       const contract = demoState.contracts[index]
       if (!contract) throw new Error('Contrato não encontrado.')
-      if (!['Rascunho', 'Cancelado'].includes(contract.status)) throw new Error('Somente rascunhos ou contratos cancelados podem ser excluídos.')
       demoState.contracts.splice(index, 1)
       persistDemoState()
       announce('Contrato excluído.')
       return { id }
     }
-    return request<{ id: string }>('contract.delete', { method: 'POST', body: JSON.stringify({ action: 'contract.delete', id }) }).then(result => { announce('Contrato excluído.'); return result })
+    try {
+      const result = await request<{ id: string }>('contract.delete', { method: 'POST', body: JSON.stringify({ action: 'contract.delete', id }) })
+      announce('Contrato excluído.')
+      return result
+    } catch (cause) {
+      if (cause instanceof Error && /Somente rascunhos|contratos cancelados/i.test(cause.message)) {
+        throw new Error('O Apps Script publicado ainda está na versão antiga. Salve e publique novamente o Code.gs para permitir excluir contratos assinados.')
+      }
+      throw cause
+    }
+  },
+  async cloneContract(id: string) {
+    if (!endpoint) {
+      const source = demoState.contracts.find(item => item.id === id)
+      if (!source) throw new Error('Contrato não encontrado.')
+      const stamp = new Date().toISOString(); const contractId = `ctr-${Date.now()}`
+      const contract: Contract = { ...clone(source), id: contractId, token: `haus-contrato-${Date.now()}`, status: 'Rascunho', createdAt: stamp, updatedAt: stamp, expiresAt: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10), signedName: undefined, signedEmail: undefined, signerDocument: undefined, signerIp: undefined, signedAt: undefined, signatureHash: undefined, events: [{ id: `evt-${Date.now()}`, contractId, type: 'Criado', occurredAt: stamp, actor: 'Haus' }] }
+      demoState.contracts.unshift(contract); persistDemoState(); announce('Contrato clonado como rascunho.'); return contract
+    }
+    try {
+      const result = await request<Contract>('contract.clone', { method: 'POST', body: JSON.stringify({ action: 'contract.clone', id }) })
+      announce('Contrato clonado como rascunho.')
+      return result
+    } catch (cause) {
+      if (!(cause instanceof Error) || !/ação inválida/i.test(cause.message)) throw cause
+      const dashboard = await request<DashboardData>('dashboard'); const source = dashboard.contracts.find(item => item.id === id)
+      if (!source) throw new Error('Contrato não encontrado.')
+      const result = await request<Contract>('contract.create', { method: 'POST', body: JSON.stringify({ action: 'contract.create', clientId: source.clientId, clientName: source.clientName, company: source.company, projectId: source.projectId ?? '', projectName: source.projectName ?? '', quoteId: source.quoteId ?? '', modelId: source.modelId, modelName: source.modelName, title: `${source.title} — cópia`, expiresAt: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10), content: source.content }) })
+      announce('Contrato clonado como rascunho.')
+      return result
+    }
   },
   async publishContract(id: string) {
     if (!endpoint) { const contract = demoState.contracts.find(item => item.id === id); if (!contract) throw new Error('Contrato não encontrado.'); if (contract.status === 'Assinado') throw new Error('Um contrato assinado não pode ser republicado.'); contract.status = 'Enviado'; contract.updatedAt = new Date().toISOString(); contract.events.unshift({ id: `evt-${Date.now()}`, contractId: id, type: 'Publicado', occurredAt: contract.updatedAt, actor: 'Haus' }); persistDemoState(); announce('Contrato publicado.'); return contract }

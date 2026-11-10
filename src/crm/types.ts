@@ -51,7 +51,7 @@ export type Service = {
   active: boolean
 }
 
-export type QuoteItem = { serviceId: string; name: string; quantity: number; price: number; billing: Service['billing'] }
+export type QuoteItem = { serviceId: string; name: string; description?: string; quantity: number; price: number; billing: Service['billing'] }
 export type Installment = { id: string; dueDate: string; amount: number; paymentUrl: string; status: InstallmentStatus; paidAt?: string }
 
 export type Quote = {
@@ -114,6 +114,9 @@ export type Contract = {
   signerDocument?: string
   signerIp?: string
   signedAt?: string
+  clientEmail?: string
+  clientPhone?: string
+  signatureHash?: string
   events: ContractEvent[]
 }
 
@@ -144,6 +147,10 @@ export type FinancialEntry = {
   projectId?: string
   projectName?: string
   notes?: string
+  projected?: boolean
+  sourceId?: string
+  recurrenceEndDate?: string
+  recurrenceStatuses?: Record<string, FinancialStatus>
 }
 
 export type DashboardData = {

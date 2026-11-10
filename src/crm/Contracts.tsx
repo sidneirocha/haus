@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Check, Copy, Download, ExternalLink, FileSignature, History, PenLine, Plus, Printer, Send, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Check, Copy, CopyPlus, Download, ExternalLink, FileSignature, History, PenLine, Plus, Printer, Send, ShieldCheck, Sparkles, Trash2, Upload, X } from 'lucide-react'
 import { crmRepository } from './repository'
+import { PublicLoading, PublicNotFound } from './PublicNotFound'
 import type { Client, Contract, ContractModel, DashboardData, Project, Quote } from './types'
+import { toInputDate } from './date-utils'
 import { Spinner, useConfirm, useToast } from './Toast'
+import { contractModelTags, contractModelsCsvTemplate, parseContractModelsCsv } from './contract-model-csv'
 
 const money = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 const date = (value?: string) => {
@@ -30,23 +33,62 @@ export function Contracts({ data, reload, search, onSearch }: { data: DashboardD
   const [editingModel, setEditingModel] = useState<ContractModel | null | undefined>(undefined)
   const [newContract, setNewContract] = useState(false)
   const [newAiDraft, setNewAiDraft] = useState(false)
+  const [modelImportBusy, setModelImportBusy] = useState(false)
+  const [modelImportOpen, setModelImportOpen] = useState(false)
+  const [modelImportText, setModelImportText] = useState('')
+  const [modelImportError, setModelImportError] = useState('')
+  const modelFileInput = useRef<HTMLInputElement>(null)
   const term = search.toLowerCase()
   const contracts = data.contracts.filter(item => `${item.title} ${item.company} ${item.status} ${item.projectName ?? ''}`.toLowerCase().includes(term))
   const models = data.contractModels.filter(item => `${item.name} ${item.description}`.toLowerCase().includes(term))
   const { notify } = useToast()
   const copy = async (contract: Contract) => { const link = `${window.location.origin}${appPath(`/contrato/${contract.token}`)}`; await navigator.clipboard?.writeText(link); notify('Link do contrato copiado.') }
+  const downloadModelTemplate = () => { const blob = new Blob([contractModelsCsvTemplate()], { type: 'text/csv;charset=utf-8' }); const href = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = href; anchor.download = 'modelo-modelos-contrato.csv'; anchor.click(); URL.revokeObjectURL(href) }
+  const importModelContent = async (text: string) => {
+    if (!text.trim()) {
+      setModelImportError('Selecione um arquivo ou cole o conteúdo CSV.')
+      return
+    }
+    setModelImportBusy(true)
+    setModelImportError('')
+    try {
+      const parsed = parseContractModelsCsv(text)
+      if (!parsed.models.length) throw new Error(parsed.errors.join(' '))
+      if (parsed.errors.length) notify(`${parsed.models.length} modelo(s) válido(s); ${parsed.errors.length} linha(s) ignorada(s).`, 'error')
+      await crmRepository.createContractModels(parsed.models)
+      reload()
+      setModelImportText('')
+      setModelImportOpen(false)
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Não foi possível importar os modelos.'
+      setModelImportError(message)
+      notify(message, 'error')
+    } finally {
+      setModelImportBusy(false)
+      if (modelFileInput.current) modelFileInput.current.value = ''
+    }
+  }
+  const importModels = async (file?: File) => {
+    if (!file) return
+    try {
+      setModelImportText(await file.text())
+    } catch {
+      setModelImportError('Não foi possível ler o arquivo CSV selecionado.')
+    }
+  }
   return <>
     <header className="crm-topbar"><div><p className="crm-overline">Haus / CRM</p><h1>Contratos</h1></div><div className="crm-top-actions"><div className="crm-command"><span aria-hidden="true">⌕</span><input value={search} onChange={event => onSearch(event.target.value)} placeholder="Buscar contratos" aria-label="Buscar contratos" /></div><button className="crm-button secondary" onClick={() => setNewAiDraft(true)}><Sparkles size={15} />Preparar com IA</button><button className="crm-button primary" onClick={() => setNewContract(true)}><Plus size={16} />Novo contrato</button></div></header>
     <div className="crm-content crm-contracts-page">
       <div className="crm-contract-intro"><div><p className="crm-overline">Documentos e aceite eletrônico</p><span>Modelos versionados, contratos vinculados e trilha de eventos.</span></div><div className="crm-contract-trust"><ShieldCheck size={16} /> Validação básica antes do envio</div></div>
       <div className="crm-tabs crm-contract-tabs"><button className={tab === 'contratos' ? 'active' : ''} onClick={() => setTab('contratos')}>Contratos <small>{data.contracts.length}</small></button><button className={tab === 'modelos' ? 'active' : ''} onClick={() => setTab('modelos')}>Modelos <small>{data.contractModels.length}</small></button></div>
-      {tab === 'contratos' ? <div className="crm-contract-list">{contracts.map(contract => <article key={contract.id} className="crm-card crm-contract-card crm-clickable" onClick={() => setSelected(contract)}><div className="crm-contract-card-top"><div><span className="crm-contract-icon"><FileSignature size={17} /></span><div><strong>{contract.title}</strong><small>{contract.company} · {contract.projectName ?? 'Sem projeto'}</small></div></div><Badge tone={statusTone(contract.status)}>{contract.status}</Badge></div><div className="crm-contract-card-meta"><span>Modelo {contract.modelName}</span><span>Expira em {date(contract.expiresAt)}</span><span>{contract.events.length} eventos</span></div><div className="crm-contract-card-actions"><button className="crm-link-button" onClick={event => { event.stopPropagation(); void copy(contract) }}><Copy size={14} />Copiar link</button>{contract.status === 'Rascunho' && <span className="crm-contract-hint">Pronto para revisão</span>}</div></article>)}{!contracts.length && <div className="crm-card"><div className="crm-empty"><FileSignature size={20} /><strong>Nenhum contrato encontrado</strong><p>Crie um contrato a partir de um modelo e vincule-o a um cliente.</p></div></div>}</div> : <div className="crm-contract-model-grid">{models.map(model => <article key={model.id} className="crm-card crm-contract-model-card crm-clickable" onClick={() => setEditingModel(model)}><div className="crm-contract-model-top"><Badge tone="green">v{model.version}</Badge><button className="crm-icon-button" onClick={event => { event.stopPropagation(); setEditingModel(model) }} aria-label={`Editar ${model.name}`}><PenLine size={15} /></button></div><h2>{model.name}</h2><p>{model.description}</p><small>{model.active ? 'Ativo para novos contratos' : 'Arquivado'}</small></article>)}<button className="crm-card crm-contract-new-model" onClick={() => setEditingModel(null)}><Plus size={18} /><strong>Novo modelo</strong><span>Crie uma base reutilizável</span></button></div>}
+      {tab === 'contratos' ? <div className="crm-contract-list">{contracts.map(contract => <article key={contract.id} className="crm-card crm-contract-card crm-clickable" onClick={() => setSelected(contract)}><div className="crm-contract-card-top"><div><span className="crm-contract-icon"><FileSignature size={17} /></span><div><strong>{contract.title}</strong><small>{contract.company} · {contract.projectName ?? 'Sem projeto'}</small></div></div><Badge tone={statusTone(contract.status)}>{contract.status}</Badge></div><div className="crm-contract-card-meta"><span>Modelo {contract.modelName}</span><span>Expira em {date(contract.expiresAt)}</span><span>{contract.events.length} eventos</span></div><div className="crm-contract-card-actions"><button className="crm-link-button" onClick={event => { event.stopPropagation(); void copy(contract) }}><Copy size={14} />Copiar link</button>{contract.status === 'Rascunho' && <span className="crm-contract-hint">Pronto para revisão</span>}</div></article>)}{!contracts.length && <div className="crm-card"><div className="crm-empty"><FileSignature size={20} /><strong>Nenhum contrato encontrado</strong><p>Crie um contrato a partir de um modelo e vincule-o a um cliente.</p></div></div>}</div> : <><div className="crm-import-toolbar"><div><strong>Importar modelos por CSV</strong><small>Tags aceitas: {contractModelTags.join(', ')}</small></div><input ref={modelFileInput} type="file" accept=".csv,text/csv" hidden onChange={event => void importModels(event.target.files?.[0])} /><button className="crm-button secondary" type="button" onClick={downloadModelTemplate}><Download size={15} />Baixar modelo</button><button className="crm-button secondary" type="button" disabled={modelImportBusy} onClick={() => { setModelImportError(''); setModelImportOpen(true) }}><Upload size={15} />Importar CSV</button></div><div className="crm-contract-model-grid">{models.map(model => <article key={model.id} className="crm-card crm-contract-model-card crm-clickable" onClick={() => setEditingModel(model)}><div className="crm-contract-model-top"><Badge tone="green">v{model.version}</Badge><button className="crm-icon-button" onClick={event => { event.stopPropagation(); setEditingModel(model) }} aria-label={`Editar ${model.name}`}><PenLine size={15} /></button></div><h2>{model.name}</h2><p>{model.description}</p><small>{model.active ? 'Ativo para novos contratos' : 'Arquivado'}</small></article>)}<button className="crm-card crm-contract-new-model" onClick={() => setEditingModel(null)}><Plus size={18} /><strong>Novo modelo</strong><span>Crie uma base reutilizável</span></button></div></>}
     </div>
     {selected && <ContractDrawer contract={data.contracts.find(item => item.id === selected.id) ?? selected} close={() => setSelected(null)} reload={reload} onCopy={copy} onEdit={contract => { setSelected(null); setEditingContract(contract) }} />}
     {newContract && <NewContract data={data} close={() => setNewContract(false)} reload={reload} />}
     {editingContract && <ContractEditor contract={data.contracts.find(item => item.id === editingContract.id) ?? editingContract} data={data} close={() => setEditingContract(null)} reload={reload} />}
     {editingModel !== undefined && <ModelEditor model={editingModel} close={() => setEditingModel(undefined)} reload={reload} />}
     {newAiDraft && <AiDraftModal data={data} close={() => setNewAiDraft(false)} reload={reload} />}
+    {modelImportOpen && <div className="crm-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget && !modelImportBusy) setModelImportOpen(false) }}><div className="crm-modal crm-import-modal" onMouseDown={event => event.stopPropagation()}><div className="crm-drawer-header"><h2>Importar modelos</h2><button className="crm-icon-button" type="button" disabled={modelImportBusy} onClick={() => setModelImportOpen(false)} aria-label="Fechar"><X size={17} /></button></div><p className="crm-form-note">Use o modelo baixado ou cole um CSV com as colunas <strong>nome;descricao;conteudo;ativo</strong>. Tags aceitas: {contractModelTags.join(', ')}.</p><label className="crm-field"><span>Selecionar arquivo CSV</span><input ref={modelFileInput} type="file" accept=".csv,text/csv" disabled={modelImportBusy} onChange={event => void importModels(event.target.files?.[0])} /></label><label className="crm-field"><span>Ou cole o conteúdo CSV</span><textarea rows={8} disabled={modelImportBusy} value={modelImportText} onChange={event => { setModelImportText(event.target.value); setModelImportError('') }} placeholder="nome;descricao;conteudo;ativo&#10;Modelo padrão;Descrição do serviço;Olá {{client.name}};sim" /></label>{modelImportError && <p className="crm-form-error" role="alert">{modelImportError}</p>}<div className="crm-form-actions"><button className="crm-button secondary" type="button" disabled={modelImportBusy} onClick={() => setModelImportOpen(false)}>Cancelar</button><button className="crm-button primary" type="button" disabled={modelImportBusy || !modelImportText.trim()} onClick={() => void importModelContent(modelImportText)}>{modelImportBusy ? <><Spinner />Importando…</> : 'Importar conteúdo'}</button></div></div></div>}
   </>
 }
 
@@ -61,7 +103,7 @@ function NewContract({ data, close, reload }: { data: DashboardData; close: () =
 }
 
 function ContractEditor({ contract, data, close, reload }: { contract: Contract; data: DashboardData; close: () => void; reload: () => void }) {
-  const [form, setForm] = useState({ clientId: contract.clientId, projectId: contract.projectId ?? '', quoteId: contract.quoteId ?? '', modelId: contract.modelId, title: contract.title, expiresAt: contract.expiresAt, content: contract.content })
+  const [form, setForm] = useState({ clientId: contract.clientId, projectId: contract.projectId ?? '', quoteId: contract.quoteId ?? '', modelId: contract.modelId, title: contract.title, expiresAt: toInputDate(contract.expiresAt), content: contract.content })
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const { notify } = useToast()
   const client = data.clients.find(item => item.id === form.clientId); const project = data.projects.find(item => item.id === form.projectId); const quote = data.quotes.find(item => item.id === form.quoteId); const model = data.contractModels.find(item => item.id === form.modelId)
   const updateModel = (id: string) => { const next = data.contractModels.find(item => item.id === id); setForm(current => ({ ...current, modelId: id, content: next?.content ?? current.content })) }
@@ -83,13 +125,14 @@ function ModelEditor({ model, close, reload }: { model: ContractModel | null | u
 }
 
 function ContractDrawer({ contract, close, reload, onCopy, onEdit }: { contract: Contract; close: () => void; reload: () => void; onCopy: (contract: Contract) => void; onEdit: (contract: Contract) => void }) {
-  const [busy, setBusy] = useState(false); const { notify } = useToast(); const confirm = useConfirm(); const link = `${window.location.origin}${appPath(`/contrato/${contract.token}`)}`
+  const [busy, setBusy] = useState(false); const [busyAction, setBusyAction] = useState<'clone' | 'delete' | null>(null); const { notify } = useToast(); const confirm = useConfirm(); const link = `${window.location.origin}${appPath(`/contrato/${contract.token}`)}`
   const canEdit = !['Assinado', 'Cancelado'].includes(contract.status)
-  const canDelete = contract.status === 'Rascunho' || contract.status === 'Cancelado'
+  const canDelete = true
+  const clone = async () => { setBusy(true); setBusyAction('clone'); try { await crmRepository.cloneContract(contract.id); close(); reload(); notify('Contrato clonado como rascunho.') } catch (cause) { notify(cause instanceof Error ? cause.message : 'Não foi possível clonar o contrato.', 'error') } finally { setBusy(false); setBusyAction(null) } }
   const publish = async () => { setBusy(true); try { await crmRepository.publishContract(contract.id); reload(); notify('Contrato publicado.'); } catch (cause) { notify(cause instanceof Error ? cause.message : 'Não foi possível publicar.', 'error') } finally { setBusy(false) } }
   const cancel = async () => { if (!(await confirm({ title: 'Cancelar contrato?', message: `O contrato “${contract.title}” ficará indisponível para assinatura, mas sua trilha será preservada.`, confirmLabel: 'Cancelar contrato' }))) return; setBusy(true); try { await crmRepository.cancelContract(contract.id); close(); reload(); notify('Contrato cancelado.') } catch (cause) { notify(cause instanceof Error ? cause.message : 'Não foi possível cancelar.', 'error') } finally { setBusy(false) } }
-  const remove = async () => { if (!(await confirm({ title: 'Excluir contrato?', message: 'Somente rascunhos ou contratos cancelados podem ser excluídos. Essa ação não pode ser desfeita.', confirmLabel: 'Excluir contrato' }))) return; setBusy(true); try { await crmRepository.deleteContract(contract.id); close(); reload(); notify('Contrato excluído.') } catch (cause) { notify(cause instanceof Error ? cause.message : 'Não foi possível excluir.', 'error') } finally { setBusy(false) } }
-  return <div className="crm-drawer-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) close() }}><aside className="crm-drawer crm-contract-drawer" onMouseDown={event => event.stopPropagation()}><div className="crm-drawer-header"><div><p className="crm-overline">Haus / Contrato</p><h2>{contract.title}</h2></div><button className="crm-icon-button" onClick={close} aria-label="Fechar"><X size={17} /></button></div><div className="crm-contract-drawer-head"><div className="crm-contract-icon"><FileSignature size={18} /></div><div><strong>{contract.company}</strong><small>{contract.clientName} · {contract.modelName} v{contract.modelId ? '1' : ''}</small></div><Badge tone={statusTone(contract.status)}>{contract.status}</Badge></div><div className="crm-contract-drawer-actions">{contract.status === 'Rascunho' && <button className="crm-button primary" onClick={publish} disabled={busy}>{busy ? <Spinner /> : <Send size={14} />}Publicar link</button>}{['Enviado', 'Visualizado', 'Assinado'].includes(contract.status) && <><button className="crm-button secondary" onClick={() => onCopy(contract)}><Copy size={14} />Copiar link</button><a className="crm-button secondary" href={link} target="_blank" rel="noreferrer"><ExternalLink size={14} />Abrir público</a></>}{canEdit && <button className="crm-button secondary" onClick={() => onEdit(contract)} disabled={busy}><PenLine size={14} />Editar</button>}{canEdit && contract.status !== 'Cancelado' && <button className="crm-button danger" onClick={() => void cancel} disabled={busy}>Cancelar</button>}{canDelete && <button className="crm-button danger" onClick={() => void remove} disabled={busy}><Trash2 size={14} />Excluir</button>}</div><div className="crm-contract-meta-grid"><div><span>Validade</span><strong>{date(contract.expiresAt)}</strong></div><div><span>Projeto</span><strong>{contract.projectName ?? 'Sem vínculo'}</strong></div></div><section className="crm-contract-content-preview"><h3>Conteúdo e versão</h3><pre>{contract.content}</pre></section><section className="crm-contract-events"><h3><History size={15} />Trilha de eventos</h3>{contract.events.map(event => <div key={event.id}><span>{event.type}</span><small>{event.actor} · {new Date(event.occurredAt).toLocaleString('pt-BR')}</small></div>)}</section><p className="crm-legal-note"><ShieldCheck size={15} /> O aceite eletrônico registra identidade declarada, consentimento, data/hora e versão. Para exigências específicas, valide o modelo com assessoria jurídica.</p></aside></div>
+  const remove = async () => { if (!(await confirm({ title: 'Excluir contrato?', message: 'Este contrato será excluído junto com sua trilha de eventos, inclusive se já estiver assinado. Essa ação não pode ser desfeita.', confirmLabel: 'Excluir contrato' }))) return; setBusy(true); setBusyAction('delete'); try { await crmRepository.deleteContract(contract.id); close(); reload(); notify('Contrato excluído.') } catch (cause) { notify(cause instanceof Error ? cause.message : 'Não foi possível excluir.', 'error') } finally { setBusy(false); setBusyAction(null) } }
+  return <div className="crm-drawer-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) close() }}><aside className="crm-drawer crm-contract-drawer" onMouseDown={event => event.stopPropagation()}><div className="crm-drawer-header"><div><p className="crm-overline">Haus / Contrato</p><h2>{contract.title}</h2></div><button className="crm-icon-button" onClick={close} aria-label="Fechar"><X size={17} /></button></div><div className="crm-contract-drawer-head"><div className="crm-contract-icon"><FileSignature size={18} /></div><div><strong>{contract.company}</strong><small>{contract.clientName} · {contract.modelName} v{contract.modelId ? '1' : ''}</small></div><Badge tone={statusTone(contract.status)}>{contract.status}</Badge></div><div className="crm-contract-drawer-actions">{contract.status === 'Rascunho' && <button className="crm-button primary" onClick={publish} disabled={busy}>{busy ? <Spinner /> : <Send size={14} />}Publicar link</button>}{['Enviado', 'Visualizado', 'Assinado'].includes(contract.status) && <><button className="crm-button secondary" onClick={() => onCopy(contract)}><Copy size={14} />Copiar link</button><a className="crm-button secondary" href={link} target="_blank" rel="noreferrer"><ExternalLink size={14} />Abrir público</a></>}<button className="crm-button secondary" onClick={() => void clone()} disabled={busy}>{busyAction === 'clone' ? <Spinner label="Clonando contrato" /> : <CopyPlus size={14} />}{busyAction === 'clone' ? 'Clonando…' : 'Clonar'}</button>{canEdit && <button className="crm-button secondary" onClick={() => onEdit(contract)} disabled={busy}><PenLine size={14} />Editar</button>}{canEdit && contract.status !== 'Cancelado' && <button className="crm-button danger" onClick={() => void cancel()} disabled={busy}>Cancelar</button>}{canDelete && <button className="crm-button danger" onClick={() => void remove()} disabled={busy}>{busyAction === 'delete' ? <Spinner label="Excluindo contrato" /> : <Trash2 size={14} />}{busyAction === 'delete' ? 'Excluindo…' : 'Excluir'}</button>}</div><div className="crm-contract-meta-grid"><div><span>Validade</span><strong>{date(contract.expiresAt)}</strong></div><div><span>Projeto</span><strong>{contract.projectName ?? 'Sem vínculo'}</strong></div></div><section className="crm-contract-content-preview"><h3>Conteúdo e versão</h3><pre>{contract.content}</pre></section><section className="crm-contract-events"><h3><History size={15} /><span>Trilha de eventos</span></h3>{contract.events.map(event => <div key={event.id}><span>{event.type}</span><small>{event.actor} · {new Date(event.occurredAt).toLocaleString('pt-BR')}</small></div>)}</section><p className="crm-legal-note"><ShieldCheck size={15} /> O aceite eletrônico registra identidade declarada, consentimento, data/hora e versão. Para exigências específicas, valide o modelo com assessoria jurídica.</p></aside></div>
 }
 
 function AiDraftModal({ data, close, reload }: { data: DashboardData; close: () => void; reload: () => void }) { const [briefing, setBriefing] = useState(''); const [clientId, setClientId] = useState(data.clients[0]?.id ?? ''); const [draft, setDraft] = useState<Awaited<ReturnType<typeof crmRepository.createAiDraft>> | null>(null); const [busy, setBusy] = useState(false); const { notify } = useToast(); const generate = async () => { setBusy(true); try { setDraft(await crmRepository.createAiDraft({ briefing, clientId })); reload() } catch (cause) { notify(cause instanceof Error ? cause.message : 'Não foi possível gerar o rascunho.', 'error') } finally { setBusy(false) } }; return <Modal title="Preparar orçamento com IA" onClose={close}><div className="crm-ai-panel"><div className="crm-contract-validation"><Sparkles size={16} /><span>A IA ficará preparada para receber um provedor seguro. O resultado sempre passa por revisão humana.</span></div><Field label="Cliente"><select value={clientId} onChange={event => setClientId(event.target.value)}>{data.clients.map(item => <option key={item.id} value={item.id}>{item.company}</option>)}</select></Field><Field label="Briefing"><textarea required rows={6} value={briefing} onChange={event => setBriefing(event.target.value)} placeholder="Ex.: site institucional com homepage, páginas de serviço e publicação em 30 dias." /></Field><button className="crm-button primary" onClick={generate} disabled={busy || !briefing.trim()}>{busy ? <><Spinner />Preparando…</> : <><Sparkles size={15} />Gerar rascunho</>}</button>{draft && <div className="crm-ai-result"><strong>Rascunho salvo para revisão</strong>{draft.result.items.map(item => <div key={item.serviceId}><span>{item.name}</span><strong>{money(item.price)}</strong></div>)}<p>{draft.result.notes}</p><small>{draft.result.alerts.join(' ')}</small></div>}</div></Modal> }
@@ -108,7 +151,7 @@ function ContractDocument({ content }: { content: string }) {
 }
 
 function downloadContractCopy(contract: Contract) {
-  const signature = contract.signedAt ? `\n\nACEITE ELETRÔNICO\nNome: ${contract.signedName ?? '—'}\nE-mail: ${contract.signedEmail ?? '—'}\nDocumento: ${contract.signerDocument ?? '—'}\nData: ${new Date(contract.signedAt).toLocaleString('pt-BR')}` : ''
+  const signature = contract.signedAt ? `\n\nACEITE ELETRÔNICO\nCliente: ${contract.company || '—'} · ${contract.clientName || '—'}\nE-mail do cliente: ${contract.clientEmail || '—'}\nTelefone do cliente: ${contract.clientPhone || '—'}\nAssinante: ${contract.signedName ?? '—'}\nE-mail do assinante: ${contract.signedEmail ?? '—'}\nDocumento: ${contract.signerDocument ?? '—'}\nData e hora: ${new Date(contract.signedAt).toLocaleString('pt-BR')}\nHash de auditoria: ${contract.signatureHash ?? '—'}` : ''
   const content = `${contract.title}\n${contract.company} · válido até ${date(contract.expiresAt)}\n\n${contract.content}${signature}\n`
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
   const href = URL.createObjectURL(blob)
@@ -123,19 +166,25 @@ function downloadContractCopy(contract: Contract) {
 
 export function PublicContract({ token }: { token: string }) {
   const [contract, setContract] = useState<Contract | null>(null)
+  const [loading, setLoading] = useState(true)
   const [done, setDone] = useState(false)
   const [form, setForm] = useState({ signedName: '', signedEmail: '', signerDocument: '', consent: false })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const { notify } = useToast()
 
-  useEffect(() => {
+  const loadContract = () => {
+    setLoading(true)
     crmRepository.getPublicContract(token).then(item => {
       setContract(item)
       void crmRepository.markContractViewed(token)
-    }).catch(() => setContract(null))
-  }, [token])
+    }).catch(() => setContract(null)).finally(() => setLoading(false))
+  }
 
-  if (!contract) return <div className="crm-public-page"><div className="crm-public-card"><strong>Contrato não encontrado</strong><p>Confira se o link está correto ou solicite um novo envio.</p></div></div>
+  useEffect(() => { loadContract() }, [token])
+
+  if (loading) return <PublicLoading label="Carregando contrato…" />
+  if (!contract) return <PublicNotFound kind="contrato" onRetry={loadContract} />
 
   const signed = done || contract.status === 'Assinado'
   const sign = async (event: React.FormEvent) => {
@@ -144,8 +193,10 @@ export function PublicContract({ token }: { token: string }) {
     setError('')
     try {
       const updated = await crmRepository.signContract(token, form)
-      setContract(updated)
+      const signatureHash = updated.signatureHash ?? await createSignatureHash(updated)
+      setContract({ ...updated, signatureHash })
       setDone(true)
+      notify('Contrato assinado e registrado.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Não foi possível assinar o contrato.')
     } finally {
@@ -157,7 +208,7 @@ export function PublicContract({ token }: { token: string }) {
     <div className="crm-public-header"><img className="crm-public-header-logo" src={appPath('/brand/logo-dark.svg')} alt="Haus" /><p className="crm-overline">Contrato de prestação de serviços</p><h1>{contract.title}</h1><p>{contract.company} · válido até {date(contract.expiresAt)}</p></div>
     <div className="crm-public-body">
       <div className="crm-public-section crm-contract-public-copy"><ContractDocument content={contract.content} /><div className="crm-public-document-actions"><button className="crm-button secondary" type="button" onClick={() => downloadContractCopy(contract)}><Download size={15} />Baixar cópia</button><button className="crm-button secondary" type="button" onClick={() => window.print()}><Printer size={15} />Imprimir / salvar PDF</button></div></div>
-      {signed ? <div className="crm-success crm-sign-success"><Check size={20} /><strong>Contrato assinado</strong><span>O aceite foi registrado com data, hora, identidade declarada e versão do documento.</span><button className="crm-button primary" type="button" onClick={() => downloadContractCopy(contract)}><Download size={15} />Baixar cópia assinada</button></div> : <form className="crm-public-section crm-sign" onSubmit={sign}>
+      {signed ? <div className="crm-success crm-sign-success"><Check size={20} /><strong>Contrato assinado</strong><span>O aceite foi registrado com data, hora, identidade declarada e versão do documento.</span><div className="crm-sign-audit"><div className="crm-sign-audit-item"><small>Cliente</small><strong>{contract.company} · {contract.clientName}</strong></div><div className="crm-sign-audit-item"><small>E-mail do cliente</small><strong>{contract.clientEmail || contract.signedEmail || '—'}</strong></div><div className="crm-sign-audit-item"><small>Telefone do cliente</small><strong>{contract.clientPhone || '—'}</strong></div><div className="crm-sign-audit-item"><small>Assinante</small><strong>{contract.signedName || '—'}</strong></div><div className="crm-sign-audit-item"><small>Data e hora</small><strong>{contract.signedAt ? new Date(contract.signedAt).toLocaleString('pt-BR') : '—'}</strong></div><div className="crm-sign-audit-item"><small>Documento</small><strong>{contract.signerDocument || '—'}</strong></div><div className="crm-sign-audit-item crm-sign-audit-hash"><small>Hash de auditoria</small><code>{contract.signatureHash || '—'}</code>{contract.signatureHash && <button className="crm-sign-audit-copy" type="button" onClick={() => { void navigator.clipboard?.writeText(contract.signatureHash || ''); notify('Hash copiado.') }}><Copy size={13} />Copiar hash</button>}</div></div><button className="crm-button primary" type="button" onClick={() => downloadContractCopy(contract)}><Download size={15} />Baixar cópia assinada</button></div> : <form className="crm-public-section crm-sign" onSubmit={sign}>
         <div className="crm-sign-heading"><span className="crm-sign-icon"><PenLine size={17} /></span><div><h2>Assinar contrato</h2><p>Leia o documento e confirme seus dados para registrar o aceite eletrônico.</p></div></div>
         <div className="crm-sign-fields"><label className="crm-sign-field"><span>Nome completo</span><input required minLength={3} autoComplete="name" placeholder="Ex.: Gustavo Erbisti" value={form.signedName} onChange={event => setForm({ ...form, signedName: event.target.value })} /></label><label className="crm-sign-field"><span>E-mail</span><input required type="email" autoComplete="email" placeholder="voce@empresa.com" value={form.signedEmail} onChange={event => setForm({ ...form, signedEmail: event.target.value })} /></label><label className="crm-sign-field crm-sign-field-full"><span>CPF ou CNPJ</span><input required autoComplete="off" placeholder="Somente para identificação" value={form.signerDocument} onChange={event => setForm({ ...form, signerDocument: event.target.value })} /></label></div>
         <label className="crm-sign-consent"><input type="checkbox" checked={form.consent} onChange={event => setForm({ ...form, consent: event.target.checked })} /><span className="crm-sign-checkmark"><Check size={14} /></span><span>Declaro que li e aceito este contrato.</span></label>
@@ -166,4 +217,13 @@ export function PublicContract({ token }: { token: string }) {
       <p className="crm-legal-note">Este fluxo registra aceite eletrônico para o MVP. Para validade específica, reconhecimento de firma ou certificado ICP-Brasil, solicite orientação jurídica.</p>
     </div><footer><span>haus.art.br</span><a href={appPath('/')}>Conheça a Haus <ExternalLink size={14} /></a></footer>
   </div></div>
+}
+
+async function createSignatureHash(contract: Contract) {
+  const payload = `${contract.id}|${contract.token}|${contract.clientId}|${contract.clientName}|${contract.company}|${contract.signedName}|${contract.signedEmail}|${contract.signerDocument}|${contract.signedAt}|${contract.content}`
+  if (globalThis.crypto?.subtle) {
+    const bytes = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload))
+    return Array.from(new Uint8Array(bytes)).map(byte => byte.toString(16).padStart(2, '0')).join('')
+  }
+  return `local-${btoa(payload).slice(0, 32)}`
 }

@@ -11,14 +11,20 @@ const SHEETS = {
   Orcamentos: ['id', 'token', 'clientId', 'clientName', 'company', 'status', 'createdAt', 'expiresAt', 'notes', 'pixKey', 'paymentUrl', 'signedName', 'signedAt', 'updatedAt'],
   Itens_Orcamento: ['id', 'quoteId', 'serviceId', 'name', 'quantity', 'price', 'billing'],
   Parcelas: ['id', 'quoteId', 'dueDate', 'amount', 'paymentUrl', 'status', 'paidAt'],
-  Lancamentos_Financeiros: ['id', 'date', 'description', 'type', 'category', 'amount', 'status', 'recurrence', 'nextDueDate', 'clientId', 'clientName', 'projectId', 'projectName', 'notes', 'createdAt', 'updatedAt'],
+  Lancamentos_Financeiros: ['id', 'date', 'description', 'type', 'category', 'amount', 'status', 'recurrence', 'nextDueDate', 'recurrenceEndDate', 'recurrenceStatuses', 'clientId', 'clientName', 'projectId', 'projectName', 'notes', 'createdAt', 'updatedAt'],
   Modelos_Contrato: ['id', 'name', 'description', 'content', 'version', 'active', 'createdAt', 'updatedAt'],
-  Contratos: ['id', 'token', 'clientId', 'clientName', 'company', 'projectId', 'projectName', 'quoteId', 'modelId', 'modelName', 'title', 'content', 'status', 'createdAt', 'updatedAt', 'expiresAt', 'signedName', 'signedEmail', 'signerDocument', 'signerIp', 'signedAt'],
+  Contratos: ['id', 'token', 'clientId', 'clientName', 'company', 'projectId', 'projectName', 'quoteId', 'modelId', 'modelName', 'title', 'content', 'status', 'createdAt', 'updatedAt', 'expiresAt', 'signedName', 'signedEmail', 'signerDocument', 'signerIp', 'signedAt', 'clientEmail', 'clientPhone', 'signatureHash'],
   Eventos_Contrato: ['id', 'contractId', 'type', 'occurredAt', 'actor', 'metadata'],
   AI_Rascunhos: ['id', 'briefing', 'clientId', 'clientName', 'status', 'result', 'model', 'createdAt', 'updatedAt'],
   Atividades: ['id', 'type', 'recordId', 'message', 'createdAt'],
   Configuracoes: ['key', 'value'],
   Form_Responses: ['timestamp', 'nome', 'email', 'mensagem', 'requestId', 'turnstileHostname']
+};
+const SHEET_ALIASES = {
+  Servicos: ['Serviços'],
+  Orcamentos: ['Orçamentos'],
+  Itens_Orcamento: ['Itens_Orçamento'],
+  Lancamentos_Financeiros: ['Lançamentos_Financeiros']
 };
 
 function doGet(e) {
@@ -75,6 +81,7 @@ function dispatchAction_(action, body) {
   if (action === 'project.update') return updateRow_('Projetos', body);
   if (action === 'project.delete') return deleteRow_('Projetos', body);
   if (action === 'service.create') return createRow_('Servicos', body);
+  if (action === 'service.import') return importServices_(body);
   if (action === 'service.update') return updateRow_('Servicos', body);
   if (action === 'service.delete') return deleteService_(body);
   if (action === 'quote.create') return createQuote_(body);
@@ -82,18 +89,26 @@ function dispatchAction_(action, body) {
   if (action === 'quote.publish') return publishQuote_(body);
   if (action === 'quote.reactivate') return reactivateQuote_(body);
   if (action === 'quote.delete') return deleteQuote_(body);
+  if (action === 'quote.clone') return cloneQuote_(body);
   if (action === 'installment.pay') return payInstallment_(body);
+  if (action === 'installment.create') return createInstallment_(body);
+  if (action === 'installment.update') return updateInstallment_(body);
+  if (action === 'installment.delete') return deleteInstallment_(body);
   if (action === 'finance.create') return createFinance_(body);
+  if (action === 'finance.stopRecurrence') return stopFinanceRecurrence_(body);
+  if (action === 'finance.occurrence.settle') return settleFinanceOccurrence_(body);
   if (action === 'finance.update') return updateRow_('Lancamentos_Financeiros', body);
   if (action === 'finance.settle') return settleFinance_(body);
   if (action === 'finance.delete') return deleteRow_('Lancamentos_Financeiros', body);
   if (action === 'contract-model.create') return createContractModel_(body);
+  if (action === 'contract-model.import') return importContractModels_(body);
   if (action === 'contract-model.update') return updateContractModel_(body);
   if (action === 'contract-model.delete') return deleteContractModel_(body);
   if (action === 'contract.create') return createContract_(body);
   if (action === 'contract.update') return updateContract_(body);
   if (action === 'contract.cancel') return cancelContract_(body);
   if (action === 'contract.delete') return deleteContract_(body);
+  if (action === 'contract.clone') return cloneContract_(body);
   if (action === 'contract.publish') return publishContract_(body);
   if (action === 'ai.draftQuote') return createAiDraft_(body);
   throw new Error('Ação inválida.');
@@ -155,10 +170,36 @@ function jsonError_(error) { return ContentService.createTextOutput(JSON.stringi
 function now_() { return new Date().toISOString(); }
 function id_(prefix) { return prefix + '-' + Utilities.getUuid().slice(0, 8); }
 
-function sheet_(name) { const sheet = spreadsheet_().getSheetByName(name); if (!sheet) throw new Error('Aba ausente: ' + name); return sheet; }
+function sheet_(name) {
+  var spreadsheet = spreadsheet_();
+  var candidates = [name].concat(SHEET_ALIASES[name] || []);
+  var sheet = null;
+  // Prefer an existing localized tab with data over an empty compatibility tab.
+  for (var candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
+    var candidate = spreadsheet.getSheetByName(candidates[candidateIndex]);
+    if (candidate && candidate.getLastRow() > 1) { sheet = candidate; break; }
+    if (candidate && !sheet) sheet = candidate;
+  }
+  if (!sheet) sheet = spreadsheet.insertSheet(name);
+
+  // Make a newly connected spreadsheet safe before the first request. This
+  // never replaces existing rows and prevents blank Parcelas/other tabs from
+  // silently treating the first record as a header.
+  var expectedHeaders = SHEETS[name] || [];
+  if (expectedHeaders.length) {
+    var lastRow = sheet.getLastRow();
+    var lastColumn = sheet.getLastColumn();
+    var headerValues = lastRow > 0 && lastColumn > 0
+      ? sheet.getRange(1, 1, 1, Math.max(lastColumn, expectedHeaders.length)).getValues()[0]
+      : [];
+    var hasHeader = headerValues.some(function(value) { return String(value || '').trim() !== ''; });
+    if (!hasHeader) sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+  }
+  return sheet;
+}
 function rows_(name) {
   const sheet = sheet_(name); const values = sheet.getDataRange().getValues(); if (values.length < 2) return [];
-  const headers = values.shift(); return values.filter(function(row) { return row.some(Boolean); }).map(function(row) { const item = {}; headers.forEach(function(header, index) { item[header] = row[index]; if (name === 'Projetos' && header === 'solutions' && typeof item[header] === 'string') { try { item[header] = item[header] ? JSON.parse(item[header]) : []; } catch (error) { item[header] = []; } } }); return item; });
+  const headers = values.shift(); return values.filter(function(row) { return row.some(Boolean); }).map(function(row) { const item = {}; headers.forEach(function(header, index) { item[header] = row[index]; if (name === 'Projetos' && header === 'solutions' && typeof item[header] === 'string') { try { item[header] = item[header] ? JSON.parse(item[header]) : []; } catch (error) { item[header] = []; } } if (name === 'Lancamentos_Financeiros' && header === 'recurrenceStatuses' && typeof item[header] === 'string') { try { item[header] = item[header] ? JSON.parse(item[header]) : {}; } catch (error) { item[header] = {}; } } }); return item; });
 }
 function append_(name, item) { const headers = SHEETS[name]; sheet_(name).appendRow(headers.map(function(header) { return item[header] === undefined ? '' : item[header]; })); return item; }
 function createRow_(name, body) {
@@ -169,10 +210,23 @@ function dashboard_() {
   syncExpiredQuotes_();
   return { clients: rows_('Clientes'), projects: rows_('Projetos'), services: rows_('Servicos'), quotes: quotes_(), finances: rows_('Lancamentos_Financeiros'), contractModels: rows_('Modelos_Contrato'), contracts: contracts_(), aiDrafts: aiDrafts_() };
 }
+function dateOnlyValue_(value) {
+  if (!value) return null;
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate(), 23, 59, 59);
+  }
+  var raw = String(value).trim();
+  var match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 23, 59, 59);
+  match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (match) return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]), 23, 59, 59);
+  var parsed = new Date(raw);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
 function quoteExpired_(quote) {
   if (!quote || !quote.expiresAt) return false;
-  var expiresAt = new Date(String(quote.expiresAt) + 'T23:59:59');
-  return !isNaN(expiresAt.getTime()) && expiresAt < new Date();
+  var expiresAt = dateOnlyValue_(quote.expiresAt);
+  return expiresAt !== null && expiresAt < new Date();
 }
 function syncExpiredQuotes_() {
   var sheet = sheet_('Orcamentos');
@@ -193,7 +247,7 @@ function syncExpiredQuotes_() {
     }
   }
 }
-function quotes_() { return rows_('Orcamentos').map(function(quote) { if (quote.status === 'Publicado' && quoteExpired_(quote)) quote.status = 'Expirado'; quote.items = rows_('Itens_Orcamento').filter(function(item) { return item.quoteId === quote.id; }); quote.installments = rows_('Parcelas').filter(function(item) { return item.quoteId === quote.id; }); return quote; }); }
+function quotes_() { var services = rows_('Servicos'); return rows_('Orcamentos').map(function(quote) { if (quote.status === 'Publicado' && quoteExpired_(quote)) quote.status = 'Expirado'; quote.items = rows_('Itens_Orcamento').filter(function(item) { return item.quoteId === quote.id; }).map(function(item) { var service = services.filter(function(candidate) { return candidate.id === item.serviceId; })[0]; item.description = item.description || (service && service.description) || ''; return item; }); quote.installments = rows_('Parcelas').filter(function(item) { return item.quoteId === quote.id; }); return quote; }); }
 function publicQuote_(token) {
   if (!token) throw new Error('Token ausente.');
   var quote = quotes_().filter(function(item) { return item.token === token; })[0];
@@ -208,9 +262,18 @@ function publicQuote_(token) {
 function contracts_() {
   const events = rows_('Eventos_Contrato');
   return rows_('Contratos').map(function(contract) {
+    var client = rows_('Clientes').filter(function(item) { return item.id === contract.clientId; })[0];
+    contract.clientEmail = contract.clientEmail || (client && client.email) || '';
+    contract.clientPhone = contract.clientPhone || (client && client.phone) || '';
     contract.events = events.filter(function(event) { return event.contractId === contract.id; }).sort(function(a, b) { return new Date(b.occurredAt) - new Date(a.occurredAt); });
     return contract;
   });
+}
+function sha256Hex_(value) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(value)).map(function(byte) {
+    var unsigned = byte < 0 ? byte + 256 : byte;
+    return ('0' + unsigned.toString(16)).slice(-2);
+  }).join('');
 }
 function aiDrafts_() {
   return rows_('AI_Rascunhos').map(function(draft) {
@@ -231,6 +294,7 @@ function createContractModel_(body) {
   if (!String(body.name || '').trim() || !String(body.description || '').trim() || !String(body.content || '').trim()) throw new Error('Nome, descrição e conteúdo do modelo são obrigatórios.');
   return createRow_('Modelos_Contrato', { name: String(body.name).trim(), description: String(body.description).trim(), content: String(body.content), version: 1, active: body.active !== false, updatedAt: now_() });
 }
+function importContractModels_(body) { if (!Array.isArray(body.models) || !body.models.length) throw new Error('Nenhum modelo válido para importar.'); return body.models.map(function(item) { return createRow_('Modelos_Contrato', { name: String(item.name || '').trim(), description: String(item.description || '').trim(), content: String(item.content || ''), version: 1, active: item.active !== false }); }); }
 function updateContractModel_(body) {
   const model = rows_('Modelos_Contrato').filter(function(item) { return item.id === body.id; })[0];
   if (!model) throw new Error('Modelo de contrato não encontrado.');
@@ -242,10 +306,12 @@ function deleteContractModel_(body) {
 }
 function createContract_(body) {
   if (!body.clientId || !body.modelId || !String(body.title || '').trim() || !String(body.content || '').trim() || !body.expiresAt) throw new Error('Cliente, modelo, título, conteúdo e validade são obrigatórios.');
-  const contract = createRow_('Contratos', { token: 'haus-contrato-' + Utilities.getUuid().replace(/-/g, '').slice(0, 16), clientId: body.clientId, clientName: body.clientName || '', company: body.company || '', projectId: body.projectId || '', projectName: body.projectName || '', quoteId: body.quoteId || '', modelId: body.modelId, modelName: body.modelName || '', title: String(body.title).trim(), content: String(body.content), status: 'Rascunho', expiresAt: body.expiresAt, signedName: '', signedEmail: '', signerDocument: '', signerIp: '', signedAt: '' });
+  var client = rows_('Clientes').filter(function(item) { return item.id === body.clientId; })[0];
+  const contract = createRow_('Contratos', { token: 'haus-contrato-' + Utilities.getUuid().replace(/-/g, '').slice(0, 16), clientId: body.clientId, clientName: body.clientName || (client && client.name) || '', company: body.company || (client && client.company) || '', projectId: body.projectId || '', projectName: body.projectName || '', quoteId: body.quoteId || '', modelId: body.modelId, modelName: body.modelName || '', title: String(body.title).trim(), content: String(body.content), status: 'Rascunho', expiresAt: body.expiresAt, signedName: '', signedEmail: '', signerDocument: '', signerIp: '', signedAt: '', clientEmail: (client && client.email) || '', clientPhone: (client && client.phone) || '', signatureHash: '' });
   addContractEvent_(contract.id, 'Criado', 'Haus', 'Versão inicial do contrato.');
   return contractById_(contract.id);
 }
+function cloneContract_(body) { if (!body.id) throw new Error('Contrato inválido.'); var source = contracts_().filter(function(item) { return item.id === body.id; })[0]; if (!source) throw new Error('Contrato não encontrado.'); var stamp = now_(); var contract = createContract_({ clientId: source.clientId, clientName: source.clientName, company: source.company, projectId: source.projectId || '', projectName: source.projectName || '', quoteId: source.quoteId || '', modelId: source.modelId, modelName: source.modelName, title: source.title + ' — cópia', expiresAt: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10), content: source.content }); return contract; }
 function updateContract_(body) {
   if (!body.id || !body.clientId || !body.modelId || !String(body.title || '').trim() || !String(body.content || '').trim() || !body.expiresAt) throw new Error('Cliente, modelo, título, conteúdo e validade são obrigatórios.');
   const contract = contractById_(body.id);
@@ -266,7 +332,6 @@ function cancelContract_(body) {
 function deleteContract_(body) {
   const contract = contractById_(body.id);
   if (!contract) throw new Error('Contrato não encontrado.');
-  if (['Rascunho', 'Cancelado'].indexOf(contract.status) < 0) throw new Error('Somente rascunhos ou contratos cancelados podem ser excluídos.');
   const result = deleteRow_('Contratos', body);
   const sheet = sheet_('Eventos_Contrato');
   const values = sheet.getDataRange().getValues();
@@ -294,8 +359,15 @@ function signContract_(body) {
   const contract = publicContract_(body.token);
   if (['Enviado', 'Visualizado'].indexOf(contract.status) < 0) throw new Error('Este contrato não está disponível para assinatura.');
   const signedAt = now_();
-  updateRow_('Contratos', { id: contract.id, status: 'Assinado', signedName: String(body.signedName).trim(), signedEmail: String(body.signedEmail).trim(), signerDocument: String(body.signerDocument).trim(), signerIp: String(body.signerIp || ''), signedAt: signedAt });
-  addContractEvent_(contract.id, 'Assinado', String(body.signedName).trim(), 'Consentimento: ' + String(body.consent));
+  var client = rows_('Clientes').filter(function(item) { return item.id === contract.clientId; })[0];
+  var signedName = String(body.signedName).trim();
+  var signedEmail = String(body.signedEmail).trim();
+  var signerDocument = String(body.signerDocument).trim();
+  var clientEmail = (client && client.email) || contract.clientEmail || '';
+  var clientPhone = (client && client.phone) || contract.clientPhone || '';
+  var signatureHash = sha256Hex_(JSON.stringify({ contractId: contract.id, token: contract.token, clientId: contract.clientId, clientName: contract.clientName, company: contract.company, clientEmail: clientEmail, clientPhone: clientPhone, title: contract.title, content: contract.content, signerName: signedName, signerEmail: signedEmail, signerDocument: signerDocument, signedAt: signedAt }));
+  updateRow_('Contratos', { id: contract.id, status: 'Assinado', clientEmail: clientEmail, clientPhone: clientPhone, signedName: signedName, signedEmail: signedEmail, signerDocument: signerDocument, signerIp: String(body.signerIp || ''), signedAt: signedAt, signatureHash: signatureHash });
+  addContractEvent_(contract.id, 'Assinado', signedName, 'Consentimento: ' + String(body.consent) + '; hash: ' + signatureHash);
   return contractById_(contract.id);
 }
 function createAiDraft_(body) {
@@ -312,6 +384,7 @@ function createQuote_(body) {
   const stamp = now_(); const token = Utilities.getUuid().replace(/-/g, '').slice(0, 16); const quote = append_('Orcamentos', { id: id_('orc'), token: token, clientId: body.clientId, clientName: body.clientName || '', company: body.company || '', status: 'Rascunho', createdAt: stamp, expiresAt: body.expiresAt || '', notes: body.notes || '', pixKey: body.pixKey || '', paymentUrl: body.paymentUrl || '', signedName: '', signedAt: '', updatedAt: stamp });
   body.items.forEach(function(item) { append_('Itens_Orcamento', { id: id_('item'), quoteId: quote.id, serviceId: item.serviceId || '', name: item.name || '', quantity: item.quantity || 1, price: item.price || 0, billing: item.billing || 'Uma vez' }); }); return publicQuoteDraft_(quote.id);
 }
+function cloneQuote_(body) { if (!body.id) throw new Error('Orçamento inválido.'); var source = quotes_().filter(function(item) { return item.id === body.id; })[0]; if (!source) throw new Error('Orçamento não encontrado.'); var stamp = now_(); var quote = append_('Orcamentos', { id: id_('orc'), token: Utilities.getUuid().replace(/-/g, '').slice(0, 16), clientId: source.clientId, clientName: source.clientName, company: source.company, status: 'Rascunho', createdAt: stamp, expiresAt: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10), notes: source.notes || '', pixKey: source.pixKey || '', paymentUrl: source.paymentUrl || '', signedName: '', signedAt: '', updatedAt: stamp }); (source.items || []).forEach(function(item) { append_('Itens_Orcamento', { id: id_('item'), quoteId: quote.id, serviceId: item.serviceId || '', name: item.name || '', quantity: item.quantity || 1, price: item.price || 0, billing: item.billing || 'Uma vez' }); }); return publicQuoteDraft_(quote.id); }
 function publicQuoteDraft_(id) { return quotes_().filter(function(item) { return item.id === id; })[0]; }
 function acceptQuote_(body) {
   if (!body.token || !body.signedName || String(body.signedName).trim().length < 2) throw new Error('Nome para aceite é obrigatório.');
@@ -319,7 +392,32 @@ function acceptQuote_(body) {
   const statusCol = headers.indexOf('status') + 1; const nameCol = headers.indexOf('signedName') + 1; const signedAtCol = headers.indexOf('signedAt') + 1; const updatedCol = headers.indexOf('updatedAt') + 1; sheet.getRange(rowIndex + 1, statusCol).setValue('Aceito'); sheet.getRange(rowIndex + 1, nameCol).setValue(String(body.signedName).trim()); sheet.getRange(rowIndex + 1, signedAtCol).setValue(now_()); sheet.getRange(rowIndex + 1, updatedCol).setValue(now_()); return publicQuote_(body.token);
 }
 function payInstallment_(body) { if (!body.quoteId || !body.installmentId) throw new Error('Parcela inválida.'); const sheet = sheet_('Parcelas'); const values = sheet.getDataRange().getValues(); const headers = values[0]; const rowIndex = values.findIndex(function(row) { return row[headers.indexOf('id')] === body.installmentId && row[headers.indexOf('quoteId')] === body.quoteId; }); if (rowIndex < 1) throw new Error('Parcela não encontrada.'); sheet.getRange(rowIndex + 1, headers.indexOf('status') + 1).setValue('Pago'); sheet.getRange(rowIndex + 1, headers.indexOf('paidAt') + 1).setValue(now_()); return rows_('Parcelas').filter(function(item) { return item.id === body.installmentId; })[0]; }
+function validInstallmentStatus_(status) { return ['Pendente', 'Pago', 'Atrasado'].indexOf(status) >= 0 ? status : 'Pendente'; }
+function createInstallment_(body) {
+  if (!body.quoteId || !body.dueDate || !isFinite(Number(body.amount)) || Number(body.amount) <= 0) throw new Error('Orçamento, vencimento e valor válido são obrigatórios.');
+  if (!quotes_().some(function(item) { return item.id === body.quoteId; })) throw new Error('Orçamento não encontrado.');
+  var status = validInstallmentStatus_(body.status);
+  return createRow_('Parcelas', { quoteId: body.quoteId, dueDate: body.dueDate, amount: Number(body.amount), paymentUrl: body.paymentUrl || '', status: status, paidAt: status === 'Pago' ? now_() : body.paidAt || '' });
+}
+function updateInstallment_(body) {
+  if (!body.id || !body.quoteId || !body.dueDate || !isFinite(Number(body.amount)) || Number(body.amount) <= 0) throw new Error('Parcela, vencimento e valor válido são obrigatórios.');
+  var installment = rows_('Parcelas').filter(function(item) { return item.id === body.id && item.quoteId === body.quoteId; })[0];
+  if (!installment) throw new Error('Parcela não encontrada.');
+  var status = validInstallmentStatus_(body.status);
+  updateRow_('Parcelas', { id: body.id, quoteId: body.quoteId, dueDate: body.dueDate, amount: Number(body.amount), paymentUrl: body.paymentUrl || '', status: status, paidAt: status === 'Pago' ? (installment.paidAt || now_()) : '' });
+  return rows_('Parcelas').filter(function(item) { return item.id === body.id; })[0];
+}
+function deleteInstallment_(body) {
+  if (!body.id || !body.quoteId) throw new Error('Parcela inválida.');
+  var installment = rows_('Parcelas').filter(function(item) { return item.id === body.id && item.quoteId === body.quoteId; })[0];
+  if (!installment) throw new Error('Parcela não encontrada.');
+  deleteRow_('Parcelas', { id: body.id });
+  return { id: body.id };
+}
 function createFinance_(body) { if (!body.date || !body.description || !body.type || !body.amount) throw new Error('Data, descrição, tipo e valor são obrigatórios.'); if (['Entrada', 'Saída', 'Custo'].indexOf(body.type) < 0) throw new Error('Tipo financeiro inválido.'); const item = createRow_('Lancamentos_Financeiros', { date: body.date, description: String(body.description).trim(), type: body.type, category: body.category || 'Geral', amount: Number(body.amount), status: body.status || 'Pendente', recurrence: body.recurrence || 'Nenhuma', nextDueDate: body.nextDueDate || '', clientId: body.clientId || '', clientName: body.clientName || '', projectId: body.projectId || '', projectName: body.projectName || '', notes: body.notes || '' }); return rows_('Lancamentos_Financeiros').filter(function(row) { return row.id === item.id; })[0]; }
+function importServices_(body) { if (!Array.isArray(body.services) || !body.services.length) throw new Error('Nenhum serviço válido para importar.'); return body.services.map(function(item) { return createRow_('Servicos', { name: String(item.name || '').trim(), description: String(item.description || '').trim(), category: String(item.category || '').trim(), price: Number(item.price || 0), billing: item.billing || 'Uma vez', active: item.active !== false }); }); }
+function stopFinanceRecurrence_(body) { if (!body.id || !body.fromDate) throw new Error('Recorrência inválida.'); var entry = rows_('Lancamentos_Financeiros').filter(function(item) { return item.id === body.id; })[0]; if (!entry || !entry.recurrence || entry.recurrence === 'Nenhuma') throw new Error('Este lançamento não possui recorrência ativa.'); var step = entry.recurrence === 'Anual' ? 12 : entry.recurrence === 'Trimestral' ? 3 : 1; var parts = String(body.fromDate).slice(0, 7).split('-'); var previous = new Date(Number(parts[0]), Number(parts[1]) - 1 - step, 1); var cutoff = previous.getFullYear() + '-' + String(previous.getMonth() + 1).padStart(2, '0') + '-01'; updateRow_('Lancamentos_Financeiros', { id: body.id, recurrenceEndDate: cutoff }); return rows_('Lancamentos_Financeiros').filter(function(item) { return item.id === body.id; })[0]; }
+function settleFinanceOccurrence_(body) { if (!body.id || !body.occurrenceDate) throw new Error('Ocorrência inválida.'); var entry = rows_('Lancamentos_Financeiros').filter(function(item) { return item.id === body.id; })[0]; if (!entry) throw new Error('Lançamento não encontrado.'); var statuses = entry.recurrenceStatuses || {}; statuses[String(body.occurrenceDate).slice(0, 10)] = entry.type === 'Entrada' ? 'Recebido' : 'Pago'; updateRow_('Lancamentos_Financeiros', { id: body.id, recurrenceStatuses: JSON.stringify(statuses) }); return rows_('Lancamentos_Financeiros').filter(function(item) { return item.id === body.id; })[0]; }
 function settleFinance_(body) { if (!body.id) throw new Error('Lançamento inválido.'); const sheet = sheet_('Lancamentos_Financeiros'); const values = sheet.getDataRange().getValues(); const headers = values[0]; const rowIndex = values.findIndex(function(row) { return row[headers.indexOf('id')] === body.id; }); if (rowIndex < 1) throw new Error('Lançamento não encontrado.'); const type = values[rowIndex][headers.indexOf('type')]; sheet.getRange(rowIndex + 1, headers.indexOf('status') + 1).setValue(type === 'Entrada' ? 'Recebido' : 'Pago'); sheet.getRange(rowIndex + 1, headers.indexOf('updatedAt') + 1).setValue(now_()); return rows_('Lancamentos_Financeiros').filter(function(item) { return item.id === body.id; })[0]; }
 function updateProjectStatus_(body) { if (!body.id || !String(body.status || '').trim()) throw new Error('Status de projeto inválido.'); const sheet = sheet_('Projetos'); const values = sheet.getDataRange().getValues(); const headers = values[0]; const rowIndex = values.findIndex(function(row) { return row[headers.indexOf('id')] === body.id; }); if (rowIndex < 1) throw new Error('Projeto não encontrado.'); sheet.getRange(rowIndex + 1, headers.indexOf('status') + 1).setValue(String(body.status).trim()); sheet.getRange(rowIndex + 1, headers.indexOf('updatedAt') + 1).setValue(now_()); return rows_('Projetos').filter(function(item) { return item.id === body.id; })[0]; }
 function createContact_(body) { if (!body.nome || !body.email || !body.mensagem || !body.turnstileToken) throw new Error('Nome, e-mail, mensagem e verificação antispam são obrigatórios.'); var verification = verifyTurnstile_(body.turnstileToken); if (!verification.success) throw new Error('Verificação antispam inválida.'); var sheet = spreadsheet_().getSheetByName('Form_Responses') || spreadsheet_().insertSheet('Form_Responses'); if (sheet.getLastRow() === 0) sheet.getRange(1, 1, 1, SHEETS.Form_Responses.length).setValues([SHEETS.Form_Responses]); var item = { timestamp: now_(), nome: String(body.nome).trim(), email: String(body.email).trim(), mensagem: String(body.mensagem).trim(), requestId: body.requestId || '', turnstileHostname: verification.hostname || '' }; sheet.appendRow(SHEETS.Form_Responses.map(function(header) { return item[header] || ''; })); return { received: true }; }
@@ -330,5 +428,5 @@ function deleteClient_(body) { if (!body.id) throw new Error('Registro inválido
 function deleteService_(body) { if (!body.id) throw new Error('Registro inválido.'); if (rows_('Projetos').some(function(project) { return (project.solutions || []).some(function(solution) { return (solution.serviceId || solution.id) === body.id; }); }) || rows_('Itens_Orcamento').some(function(item) { return item.serviceId === body.id; })) throw new Error('Este serviço está vinculado a um projeto ou orçamento. Desative-o em vez de excluí-lo.'); return deleteRow_('Servicos', body); }
 function deleteQuote_(body) { var result = deleteRow_('Orcamentos', body); var sheet = sheet_('Itens_Orcamento'); var values = sheet.getDataRange().getValues(); var headers = values[0]; var quoteColumn = headers.indexOf('quoteId'); for (var i = values.length - 1; i >= 1; i--) { if (values[i][quoteColumn] === body.id) sheet.deleteRow(i + 1); } var installmentSheet = sheet_('Parcelas'); var installmentValues = installmentSheet.getDataRange().getValues(); var installmentHeaders = installmentValues[0]; var installmentQuoteColumn = installmentHeaders.indexOf('quoteId'); for (var j = installmentValues.length - 1; j >= 1; j--) { if (installmentValues[j][installmentQuoteColumn] === body.id) installmentSheet.deleteRow(j + 1); } return result; }
 function updateQuote_(body) { if (!body.id || !body.items || !body.items.length) throw new Error('Orçamento e itens são obrigatórios.'); var quote = updateRow_('Orcamentos', body); var itemSheet = sheet_('Itens_Orcamento'); var values = itemSheet.getDataRange().getValues(); var headers = values[0]; for (var i = values.length - 1; i >= 1; i--) { if (values[i][headers.indexOf('quoteId')] === body.id) itemSheet.deleteRow(i + 1); } body.items.forEach(function(item) { append_('Itens_Orcamento', { id: id_('item'), quoteId: body.id, serviceId: item.serviceId || '', name: item.name || '', quantity: item.quantity || 1, price: item.price || 0, billing: item.billing || 'Uma vez' }); }); return publicQuoteDraft_(quote.id); }
-function publishQuote_(body) { if (!body.id) throw new Error('Orçamento inválido.'); var sheet = sheet_('Orcamentos'); var values = sheet.getDataRange().getValues(); var headers = values[0]; var rowIndex = values.findIndex(function(row) { return row[headers.indexOf('id')] === body.id; }); if (rowIndex < 1) throw new Error('Orçamento não encontrado.'); var expiresAt = new Date(String(values[rowIndex][headers.indexOf('expiresAt')]) + 'T12:00:00'); if (isNaN(expiresAt.getTime()) || expiresAt <= new Date()) throw new Error('Defina uma validade futura antes de publicar.'); sheet.getRange(rowIndex + 1, headers.indexOf('status') + 1).setValue('Publicado'); sheet.getRange(rowIndex + 1, headers.indexOf('updatedAt') + 1).setValue(now_()); return publicQuoteDraft_(body.id); }
-function reactivateQuote_(body) { if (!body.id || !body.expiresAt) throw new Error('Orçamento e nova validade são obrigatórios.'); var expiresAt = new Date(String(body.expiresAt) + 'T12:00:00'); if (isNaN(expiresAt.getTime()) || expiresAt <= new Date()) throw new Error('A nova validade precisa ser futura.'); var sheet = sheet_('Orcamentos'); var values = sheet.getDataRange().getValues(); var headers = values[0]; var rowIndex = values.findIndex(function(row) { return row[headers.indexOf('id')] === body.id; }); if (rowIndex < 1) throw new Error('Orçamento não encontrado.'); sheet.getRange(rowIndex + 1, headers.indexOf('status') + 1).setValue('Publicado'); sheet.getRange(rowIndex + 1, headers.indexOf('expiresAt') + 1).setValue(String(body.expiresAt)); sheet.getRange(rowIndex + 1, headers.indexOf('updatedAt') + 1).setValue(now_()); return publicQuoteDraft_(body.id); }
+function publishQuote_(body) { if (!body.id) throw new Error('Orçamento inválido.'); var sheet = sheet_('Orcamentos'); var values = sheet.getDataRange().getValues(); var headers = values[0]; var rowIndex = values.findIndex(function(row) { return row[headers.indexOf('id')] === body.id; }); if (rowIndex < 1) throw new Error('Orçamento não encontrado.'); var expiresAt = dateOnlyValue_(values[rowIndex][headers.indexOf('expiresAt')]); if (!expiresAt || expiresAt <= new Date()) throw new Error('Defina uma validade futura antes de publicar.'); sheet.getRange(rowIndex + 1, headers.indexOf('status') + 1).setValue('Publicado'); sheet.getRange(rowIndex + 1, headers.indexOf('updatedAt') + 1).setValue(now_()); return publicQuoteDraft_(body.id); }
+function reactivateQuote_(body) { if (!body.id || !body.expiresAt) throw new Error('Orçamento e nova validade são obrigatórios.'); var expiresAt = dateOnlyValue_(body.expiresAt); if (!expiresAt || expiresAt <= new Date()) throw new Error('A nova validade precisa ser futura.'); var sheet = sheet_('Orcamentos'); var values = sheet.getDataRange().getValues(); var headers = values[0]; var rowIndex = values.findIndex(function(row) { return row[headers.indexOf('id')] === body.id; }); if (rowIndex < 1) throw new Error('Orçamento não encontrado.'); sheet.getRange(rowIndex + 1, headers.indexOf('status') + 1).setValue('Publicado'); sheet.getRange(rowIndex + 1, headers.indexOf('expiresAt') + 1).setValue(String(body.expiresAt)); sheet.getRange(rowIndex + 1, headers.indexOf('updatedAt') + 1).setValue(now_()); return publicQuoteDraft_(body.id); }
