@@ -3371,6 +3371,10 @@ function PublicQuote({ token }: { token: string }) {
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
+  const annualRecurringTotal = quote.items.reduce(
+    (sum, item) => sum + (item.billing === "Anual" ? item.price * item.quantity : 0),
+    0,
+  );
   const expired = isQuoteExpired(quote);
   const acceptedPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get("preview") === "accepted";
   const accepted = acceptedPreview || done || quote.status === "Aceito";
@@ -3415,6 +3419,12 @@ function PublicQuote({ token }: { token: string }) {
               <span>Investimento total</span>
               <strong>{money(total)}</strong>
             </div>
+            {annualRecurringTotal > 0 && (
+              <div className="crm-public-recurring-total">
+                <span>Total recorrente anual</span>
+                <strong>{money(annualRecurringTotal)}</strong>
+              </div>
+            )}
           </div>
           {expired ? (
             <div className="crm-expired-quote">

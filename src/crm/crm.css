@@ -578,3 +578,30 @@
   font-weight:800;
   line-height:1.2;
 }
+
+.crm-quote-item {
+  transition: opacity .16s ease, background-color .16s ease, transform .16s ease;
+}
+.crm-quote-item.is-dragging {
+  opacity: .48;
+  background: #f0fbf3;
+  transform: scale(.99);
+}
+.crm-quote-drag-handle {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 28px;
+  margin-left: -4px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #8a9b92;
+  cursor: grab;
+}
+.crm-quote-drag-handle:active { cursor: grabbing; }
+.crm-quote-drag-handle:hover { background: #eaf7ef; color: #137542; }
+.crm-quote-item > span { flex: 1; min-width: 0; }
+.crm-public-recurring-total { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:8px; padding-top:9px; border-top:1px solid #eef2ef; color:#7b8982; font-size:11px; }
+.crm-public-recurring-total strong { color:#53665b; font-size:13px; font-weight:700; }
