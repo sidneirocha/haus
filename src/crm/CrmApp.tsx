@@ -15,6 +15,7 @@ import {
   ExternalLink,
   FileSignature,
   FileText,
+  Fingerprint,
   LayoutDashboard,
   List,
   LogOut,
@@ -53,7 +54,7 @@ import { QuoteDetailEditor } from "./QuoteDetailEditor";
 import { Contracts, PublicContract } from "./Contracts";
 import { SERVICE_CATEGORIES } from "./types";
 import { formatBRL, parseBRL } from "./money";
-import { clearCrmSession } from "./auth";
+import { clearCrmSession, registerCrmPasskey } from "./auth";
 import { financeEntriesForPeriod, shiftMonth } from "./finance-utils";
 import { parseServicesCsv, servicesCsvTemplate } from "./service-csv";
 import { CrmAuthGate } from "./AuthGate";
@@ -252,6 +253,7 @@ function Sidebar({
   open,
   setOpen,
   onSettings,
+  onRegisterPasskey,
   onLogout,
 }: {
   view: View;
@@ -259,6 +261,7 @@ function Sidebar({
   open: boolean;
   setOpen: (value: boolean) => void;
   onSettings: () => void;
+  onRegisterPasskey: () => void;
   onLogout: () => void;
 }) {
   return (
@@ -319,6 +322,10 @@ function Sidebar({
           <button onClick={onSettings}>
             <Settings2 size={17} />
             Configurações
+          </button>
+          <button onClick={onRegisterPasskey}>
+            <Fingerprint size={17} />
+            Cadastrar biometria
           </button>
           <button onClick={onLogout}>
             <LogOut size={17} />
@@ -3781,6 +3788,14 @@ export function CrmApp() {
             open={menuOpen}
             setOpen={setMenuOpen}
             onSettings={() => setSettingsOpen(true)}
+            onRegisterPasskey={async () => {
+              try {
+                await registerCrmPasskey();
+                announce("Biometria cadastrada para este dispositivo.");
+              } catch (cause) {
+                announce(cause instanceof Error ? cause.message : "Não foi possível cadastrar a biometria.", "error");
+              }
+            }}
             onLogout={clearCrmSession}
           />
           <main className="crm-main">

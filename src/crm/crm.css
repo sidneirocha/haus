@@ -506,6 +506,8 @@
 .crm-auth-password input { width: 100%; box-sizing: border-box; padding-right: 42px !important; }
 .crm-auth-password button { position: absolute; top: 0; right: 0; width: 39px; height: 100%; display: grid; place-items: center; border: 0; background: transparent; color: #82958a; cursor: pointer; }
 .crm-auth-submit { width: 100%; margin-top: 3px; min-height: 44px; }
+.crm-auth-passkey { width: 100%; margin-top: 8px; min-height: 42px; border: 1px solid #b8d9c5; background: #f4fbf6; color: #0f6b3d; }
+.crm-auth-passkey:hover:not(:disabled) { background: #e6f5eb; }
 .crm-auth-note, .crm-auth-error { margin: -2px 0 0; padding: 10px 11px; border-radius: 8px; font-size: 11px; line-height: 1.5; }
 .crm-auth-note { border: 1px solid #66511e; background: #2a2412; color: #e3cc7b; }
 .crm-auth-note code { color: #fff0a6; }

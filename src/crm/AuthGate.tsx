@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode, FormEvent } from 'react'
-import { ArrowLeft, Eye, EyeOff, LockKeyhole, LogIn } from 'lucide-react'
-import { clearCrmSession, getCrmSession, isCrmEndpointConfigured, loginCrm, subscribeCrmAuth } from './auth'
+import { ArrowLeft, Eye, EyeOff, Fingerprint, LockKeyhole, LogIn } from 'lucide-react'
+import { clearCrmSession, getCrmSession, isCrmEndpointConfigured, isWebAuthnAvailable, loginCrm, loginCrmWithPasskey, subscribeCrmAuth } from './auth'
 import './crm.css'
 
 const path = (value: string) => `${import.meta.env.BASE_URL}${value.replace(/^\//, '')}`
@@ -11,6 +11,7 @@ export function CrmLogin() {
   const [adminKey, setAdminKey] = useState('')
   const [showKey, setShowKey] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [passkeyBusy, setPasskeyBusy] = useState(false)
   const [error, setError] = useState('')
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -24,6 +25,19 @@ export function CrmLogin() {
       setError(cause instanceof Error ? cause.message : 'Não foi possível entrar no CRM.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const submitPasskey = async () => {
+    if (passkeyBusy) return
+    setError('')
+    setPasskeyBusy(true)
+    try {
+      await loginCrmWithPasskey(email)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível entrar com biometria.')
+    } finally {
+      setPasskeyBusy(false)
     }
   }
 
@@ -42,6 +56,7 @@ export function CrmLogin() {
           {!isCrmEndpointConfigured && <p className="crm-auth-note">Modo local: configure <code>VITE_CRM_ENDPOINT</code> com a URL implantada do Apps Script para validar o login real.</p>}
           {error && <p className="crm-auth-error" role="alert">{error}</p>}
           <button className="crm-button primary crm-auth-submit" type="submit" disabled={busy}>{busy ? 'Validando…' : <><LogIn size={16} />Entrar no CRM</>}</button>
+          {isWebAuthnAvailable() && <button className="crm-button crm-auth-passkey" type="button" onClick={submitPasskey} disabled={busy || passkeyBusy}>{passkeyBusy ? 'Aguardando biometria…' : <><Fingerprint size={16} />Entrar com biometria</>}</button>}
         </form>
         <p className="crm-auth-security">A sessão é temporária e a chave não fica armazenada no navegador.</p>
       </div>

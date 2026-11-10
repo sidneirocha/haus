@@ -36,7 +36,7 @@ function doGet(e) {
     if (action === 'quote') return json_(publicQuote_(e.parameter.id));
     if (action === 'contract') return json_(publicContract_(e.parameter.id));
     const body = getBody_(e, action);
-    if (action === 'auth.login' || isPublicAction_(action)) return json_(dispatchAction_(action, body));
+    if (action === 'auth.login' || action === 'auth.session' || isPublicAction_(action)) return json_(dispatchAction_(action, body));
     requireAdmin_(e, body);
     return json_(dispatchAction_(action || 'dashboard', body));
   } catch (error) { return jsonError_(error); }
@@ -46,7 +46,7 @@ function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents || '{}');
     const action = String(body.action || '').trim();
-    if (action === 'auth.login' || isPublicAction_(action) || action === 'contact.create') return json_(dispatchAction_(action, body));
+    if (action === 'auth.login' || action === 'auth.session' || isPublicAction_(action) || action === 'contact.create') return json_(dispatchAction_(action, body));
     requireAdmin_(e, body);
     return json_(dispatchAction_(action, body));
   } catch (error) { return jsonError_(error); }
@@ -76,6 +76,7 @@ function dispatchAction_(action, body) {
   if (action === 'contract.view') return viewContract_(body);
   if (action === 'contract.sign') return signContract_(body);
   if (action === 'auth.login') return login_(body);
+  if (action === 'auth.session') return authSession_(body);
   if (action === 'client.create') return createRow_('Clientes', body);
   if (action === 'client.update') return updateRow_('Clientes', body);
   if (action === 'client.delete') return deleteClient_(body);
@@ -171,6 +172,12 @@ function login_(body) {
   const expiresAt = new Date(Date.now() + AUTH_SESSION_TTL * 1000).toISOString();
   CacheService.getScriptCache().put(AUTH_CACHE_PREFIX + token, JSON.stringify({ email: email, expiresAt: expiresAt }), AUTH_SESSION_TTL);
   return { token: token, email: email, expiresAt: expiresAt };
+}
+
+function authSession_(body) {
+  const session = session_(null, body);
+  if (!session) throw new Error('Sessão inválida ou expirada.');
+  return session;
 }
 
 function session_(event, body) {
