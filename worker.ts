@@ -81,7 +81,7 @@ async function crmRequest(env: Env, action: string, payload: Record<string, unkn
 }
 
 async function getCredentialIds(kv: KVNamespace, email: string) {
-  return await kv.get<string[]>(`user:${email}`) || []
+  return await kv.get<string[]>(`user:${email}`, 'json') || []
 }
 
 async function getCredentials(kv: KVNamespace, email: string) {
