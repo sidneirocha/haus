@@ -8,6 +8,12 @@
     "binding": "ASSETS",
     "run_worker_first": true
   },
+  "kv_namespaces": [
+    {
+      "binding": "WEBAUTHN_KV",
+      "id": "83b34227eb464e99b3131dab9586122a"
+    }
+  ],
   "build": {
     "command": "npm run build"
   }
