@@ -108,7 +108,7 @@ const postWebAuthn = async (path: string, payload: Record<string, unknown>) => {
 
 export const isWebAuthnAvailable = () => Boolean(window.PublicKeyCredential && navigator.credentials)
 
-export async function loginCrmWithPasskey(email: string) {
+export async function loginCrmWithPasskey(email = '') {
   if (!isWebAuthnAvailable()) throw new Error('Este navegador não oferece autenticação por biometria.')
   const options = await postWebAuthn('/api/webauthn/login/options', { email: email.trim() })
   const publicKey: PublicKeyCredentialRequestOptions = {
@@ -121,7 +121,7 @@ export async function loginCrmWithPasskey(email: string) {
   const credential = await navigator.credentials.get({ publicKey }) as PublicKeyCredential | null
   if (!credential) throw new Error('A autenticação foi cancelada.')
   const body = await postWebAuthn('/api/webauthn/login/verify', {
-    email: email.trim(),
+    ...(email.trim() ? { email: email.trim() } : {}),
     challenge: options.challenge,
     response: serializeCredential(credential),
   })

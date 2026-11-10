@@ -51,7 +51,7 @@ export function CrmLogin() {
         <h1 id="crm-login-title">Entrar no CRM</h1>
         <p className="crm-auth-intro">Use as credenciais administrativas configuradas no Apps Script.</p>
         <form className="crm-auth-form" onSubmit={submit}>
-          <label className="crm-field"><span>E-mail administrativo</span><input type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="username" placeholder="admin@empresa.com" required /></label>
+          <label className="crm-field"><span>E-mail administrativo</span><input type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="username" placeholder="admin@empresa.com" /></label>
           <label className="crm-field"><span>Chave administrativa</span><div className="crm-auth-password"><input type={showKey ? 'text' : 'password'} value={adminKey} onChange={event => setAdminKey(event.target.value)} autoComplete="current-password" placeholder="Sua chave do Apps Script" required /><button type="button" onClick={() => setShowKey(value => !value)} aria-label={showKey ? 'Ocultar chave' : 'Mostrar chave'}>{showKey ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></label>
           {!isCrmEndpointConfigured && <p className="crm-auth-note">Modo local: configure <code>VITE_CRM_ENDPOINT</code> com a URL implantada do Apps Script para validar o login real.</p>}
           {error && <p className="crm-auth-error" role="alert">{error}</p>}

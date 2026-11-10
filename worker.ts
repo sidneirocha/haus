@@ -25,7 +25,7 @@ type StoredCredential = {
 
 type ChallengeRecord = {
   challenge: string
-  email: string
+  email?: string
   sessionToken?: string
   createdAt: number
 }
@@ -129,7 +129,7 @@ async function registerOptions(request: Request, env: Env) {
     userName: email,
     userID,
     excludeCredentials: credentials.map(credential => ({ id: credential.id, transports: credential.transports as AuthenticatorTransport[] | undefined })),
-    authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' },
+    authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
   })
   await createChallenge(config.kv, { challenge: options.challenge, email, sessionToken, createdAt: Date.now() })
   return json({ ok: true, data: options }, 200, request, env)
@@ -171,12 +171,11 @@ async function loginOptions(request: Request, env: Env) {
   const config = requireConfig(env)
   const body = await readBody(request)
   const email = String(body.email || '').trim().toLowerCase()
-  if (!email) throw new Error('Informe o e-mail administrativo para usar a biometria.')
-  const credentials = await getCredentials(config.kv, email)
-  if (!credentials.length) throw new Error('Nenhuma passkey cadastrada para este e-mail.')
+  const credentials = email ? await getCredentials(config.kv, email) : []
+  if (email && !credentials.length) throw new Error('Nenhuma passkey cadastrada para este e-mail.')
   const options = await generateAuthenticationOptions({
     rpID: config.rpID,
-    allowCredentials: credentials.map(credential => ({ id: credential.id, transports: credential.transports as AuthenticatorTransport[] | undefined })),
+    ...(credentials.length ? { allowCredentials: credentials.map(credential => ({ id: credential.id, transports: credential.transports as AuthenticatorTransport[] | undefined })) } : {}),
     userVerification: 'required',
   })
   await createChallenge(config.kv, { challenge: options.challenge, email, createdAt: Date.now() })
@@ -189,8 +188,10 @@ async function loginVerify(request: Request, env: Env) {
   const response = body.response
   if (!response || typeof response !== 'object') throw new Error('Resposta WebAuthn ausente.')
   const credentialId = String((response as { id?: string }).id || '')
-  const allCredentials = await getCredentials(config.kv, String(body.email || '').trim().toLowerCase())
-  const stored = allCredentials.find(credential => credential.id === credentialId)
+  const requestedEmail = String(body.email || '').trim().toLowerCase()
+  const stored = requestedEmail
+    ? (await getCredentials(config.kv, requestedEmail)).find(credential => credential.id === credentialId)
+    : await config.kv.get<StoredCredential>(`credential:${credentialId}`, 'json')
   if (!stored) throw new Error('Passkey não encontrada.')
   const challenge = String(body.challenge || '')
   const record = await consumeChallenge(config.kv, challenge, 'login')
@@ -210,7 +211,7 @@ async function loginVerify(request: Request, env: Env) {
   if (!verification.verified) throw new Error('Biometria não validada.')
   const updated = { ...stored, counter: verification.authenticationInfo.newCounter }
   await config.kv.put(`credential:${stored.id}`, JSON.stringify(updated))
-  const session = await crmRequest(env, 'auth.login', { email: record.email, adminKey: env.ADMIN_KEY || '' })
+  const session = await crmRequest(env, 'auth.login', { email: stored.email, adminKey: env.ADMIN_KEY || '' })
   return json({ ok: true, data: session }, 200, request, env)
 }
 
