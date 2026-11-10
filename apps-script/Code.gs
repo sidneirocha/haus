@@ -7,13 +7,14 @@
 const SHEETS = {
   Clientes: ['id', 'name', 'company', 'email', 'phone', 'notes', 'createdAt', 'updatedAt'],
   Projetos: ['id', 'name', 'clientId', 'clientName', 'status', 'startDate', 'dueDate', 'nextAction', 'upsellDate', 'value', 'notes', 'solutions', 'quoteId', 'quoteToken', 'sourceStatus', 'epicKey', 'createdAt', 'updatedAt'],
-  Historias: ['id', 'projectId', 'quoteItemId', 'serviceId', 'title', 'description', 'status', 'priority', 'assignee', 'startDate', 'dueDate', 'position', 'createdAt', 'updatedAt'],
+  Historias: ['id', 'projectId', 'sprintId', 'quoteItemId', 'serviceId', 'title', 'description', 'status', 'priority', 'assignee', 'startDate', 'dueDate', 'position', 'createdAt', 'updatedAt'],
+  Sprints: ['id', 'projectId', 'name', 'goal', 'startDate', 'endDate', 'status', 'durationDays', 'createdAt', 'updatedAt'],
   Subtarefas: ['id', 'storyId', 'title', 'description', 'status', 'priority', 'assignee', 'startDate', 'dueDate', 'position', 'createdAt', 'updatedAt'],
   Servicos: ['id', 'name', 'description', 'category', 'price', 'billing', 'active', 'createdAt', 'updatedAt'],
   Orcamentos: ['id', 'token', 'clientId', 'clientName', 'company', 'status', 'createdAt', 'expiresAt', 'notes', 'pixKey', 'paymentUrl', 'projectId', 'signedName', 'signedAt', 'updatedAt'],
   Itens_Orcamento: ['id', 'quoteId', 'serviceId', 'name', 'quantity', 'price', 'billing'],
   Parcelas: ['id', 'quoteId', 'dueDate', 'amount', 'paymentUrl', 'status', 'paidAt'],
-  Lancamentos_Financeiros: ['id', 'date', 'description', 'type', 'category', 'amount', 'status', 'recurrence', 'nextDueDate', 'recurrenceEndDate', 'recurrenceStatuses', 'clientId', 'clientName', 'projectId', 'projectName', 'notes', 'createdAt', 'updatedAt'],
+  Lancamentos_Financeiros: ['id', 'date', 'description', 'type', 'category', 'amount', 'status', 'recurrence', 'nextDueDate', 'recurrenceEndDate', 'recurrenceCount', 'recurrenceStatuses', 'clientId', 'clientName', 'projectId', 'projectName', 'notes', 'createdAt', 'updatedAt'],
   Modelos_Contrato: ['id', 'name', 'description', 'content', 'version', 'active', 'createdAt', 'updatedAt'],
   Contratos: ['id', 'token', 'clientId', 'clientName', 'company', 'projectId', 'projectName', 'quoteId', 'modelId', 'modelName', 'title', 'content', 'status', 'createdAt', 'updatedAt', 'expiresAt', 'signedName', 'signedEmail', 'signerDocument', 'signerIp', 'signedAt', 'clientEmail', 'clientPhone', 'signatureHash'],
   Eventos_Contrato: ['id', 'contractId', 'type', 'occurredAt', 'actor', 'metadata'],
@@ -84,6 +85,9 @@ function dispatchAction_(action, body) {
   if (action === 'story.create') return createStory_(body);
   if (action === 'story.update') return updateRow_('Historias', body);
   if (action === 'story.delete') return deleteRow_('Historias', body);
+  if (action === 'sprints') return rows_('Sprints').filter(function(item) { return !body.projectId || item.projectId === body.projectId; });
+  if (action === 'sprint.create') return createSprint_(body);
+  if (action === 'sprint.update') return updateRow_('Sprints', body);
   if (action === 'subtasks') return rows_('Subtarefas').filter(function(item) { return !body.storyId || item.storyId === body.storyId; });
   if (action === 'subtask.create') return createSubtask_(body);
   if (action === 'subtask.update') return updateRow_('Subtarefas', body);
@@ -227,7 +231,7 @@ function createRow_(name, body) {
 }
 function dashboard_() {
   syncExpiredQuotes_();
-  return { clients: rows_('Clientes'), projects: rows_('Projetos'), services: rows_('Servicos'), quotes: quotes_(), finances: rows_('Lancamentos_Financeiros'), contractModels: rows_('Modelos_Contrato'), contracts: contracts_(), aiDrafts: aiDrafts_(), stories: rows_('Historias'), subtasks: rows_('Subtarefas'), activities: rows_('Atividades') };
+  return { clients: rows_('Clientes'), projects: rows_('Projetos'), services: rows_('Servicos'), quotes: quotes_(), finances: rows_('Lancamentos_Financeiros'), contractModels: rows_('Modelos_Contrato'), contracts: contracts_(), aiDrafts: aiDrafts_(), stories: rows_('Historias'), subtasks: rows_('Subtarefas'), activities: rows_('Atividades'), sprints: rows_('Sprints') };
 }
 function dateOnlyValue_(value) {
   if (!value) return null;
@@ -433,7 +437,7 @@ function deleteInstallment_(body) {
   deleteRow_('Parcelas', { id: body.id });
   return { id: body.id };
 }
-function createFinance_(body) { if (!body.date || !body.description || !body.type || !body.amount) throw new Error('Data, descrição, tipo e valor são obrigatórios.'); if (['Entrada', 'Saída', 'Custo'].indexOf(body.type) < 0) throw new Error('Tipo financeiro inválido.'); const item = createRow_('Lancamentos_Financeiros', { date: body.date, description: String(body.description).trim(), type: body.type, category: body.category || 'Geral', amount: Number(body.amount), status: body.status || 'Pendente', recurrence: body.recurrence || 'Nenhuma', nextDueDate: body.nextDueDate || '', clientId: body.clientId || '', clientName: body.clientName || '', projectId: body.projectId || '', projectName: body.projectName || '', notes: body.notes || '' }); return rows_('Lancamentos_Financeiros').filter(function(row) { return row.id === item.id; })[0]; }
+function createFinance_(body) { if (!body.date || !body.description || !body.type || !body.amount) throw new Error('Data, descrição, tipo e valor são obrigatórios.'); if (['Entrada', 'Saída', 'Custo'].indexOf(body.type) < 0) throw new Error('Tipo financeiro inválido.'); const item = createRow_('Lancamentos_Financeiros', { date: body.date, description: String(body.description).trim(), type: body.type, category: body.category || 'Geral', amount: Number(body.amount), status: body.status || 'Pendente', recurrence: body.recurrence || 'Nenhuma', nextDueDate: body.nextDueDate || '', recurrenceCount: body.recurrence === 'Nenhuma' ? '' : (body.recurrenceCount ? Math.max(1, Number(body.recurrenceCount)) : ''), recurrenceEndDate: body.recurrenceEndDate || '', clientId: body.clientId || '', clientName: body.clientName || '', projectId: body.projectId || '', projectName: body.projectName || '', notes: body.notes || '' }); return rows_('Lancamentos_Financeiros').filter(function(row) { return row.id === item.id; })[0]; }
 function importServices_(body) { if (!Array.isArray(body.services) || !body.services.length) throw new Error('Nenhum serviço válido para importar.'); return body.services.map(function(item) { return createRow_('Servicos', { name: String(item.name || '').trim(), description: String(item.description || '').trim(), category: String(item.category || '').trim(), price: Number(item.price || 0), billing: item.billing || 'Uma vez', active: item.active !== false }); }); }
 function stopFinanceRecurrence_(body) { if (!body.id || !body.fromDate) throw new Error('Recorrência inválida.'); var entry = rows_('Lancamentos_Financeiros').filter(function(item) { return item.id === body.id; })[0]; if (!entry || !entry.recurrence || entry.recurrence === 'Nenhuma') throw new Error('Este lançamento não possui recorrência ativa.'); var step = entry.recurrence === 'Anual' ? 12 : entry.recurrence === 'Trimestral' ? 3 : 1; var parts = String(body.fromDate).slice(0, 7).split('-'); var previous = new Date(Number(parts[0]), Number(parts[1]) - 1 - step, 1); var cutoff = previous.getFullYear() + '-' + String(previous.getMonth() + 1).padStart(2, '0') + '-01'; updateRow_('Lancamentos_Financeiros', { id: body.id, recurrenceEndDate: cutoff }); return rows_('Lancamentos_Financeiros').filter(function(item) { return item.id === body.id; })[0]; }
 function settleFinanceOccurrence_(body) { if (!body.id || !body.occurrenceDate) throw new Error('Ocorrência inválida.'); var entry = rows_('Lancamentos_Financeiros').filter(function(item) { return item.id === body.id; })[0]; if (!entry) throw new Error('Lançamento não encontrado.'); var statuses = entry.recurrenceStatuses || {}; statuses[String(body.occurrenceDate).slice(0, 10)] = entry.type === 'Entrada' ? 'Recebido' : 'Pago'; updateRow_('Lancamentos_Financeiros', { id: body.id, recurrenceStatuses: JSON.stringify(statuses) }); return rows_('Lancamentos_Financeiros').filter(function(item) { return item.id === body.id; })[0]; }
@@ -443,12 +447,12 @@ function createProjectFromQuote_(body) {
   if (!body.quoteId) throw new Error('Selecione um orçamento.');
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
-  var project = null; var createdStoryIds = [];
+  var project = null; var createdStoryIds = []; var createdSprint = null;
   try {
     var quote = quotes_().filter(function(item) { return item.id === body.quoteId; })[0];
     if (!quote) throw new Error('Orçamento não encontrado.');
     var existing = rows_('Projetos').filter(function(item) { return item.quoteId === quote.id; })[0];
-    if (existing) return { project: existing, stories: rows_('Historias').filter(function(item) { return item.projectId === existing.id; }), duplicate: true };
+    if (existing) return { project: existing, stories: rows_('Historias').filter(function(item) { return item.projectId === existing.id; }), sprints: rows_('Sprints').filter(function(item) { return item.projectId === existing.id; }), duplicate: true };
     var stamp = now_();
     project = append_('Projetos', {
       id: id_('project'), name: quote.company || quote.clientName || 'Projeto sem nome', clientId: quote.clientId || '', clientName: quote.clientName || quote.company || '',
@@ -457,15 +461,17 @@ function createProjectFromQuote_(body) {
       notes: 'Projeto criado a partir do orçamento ' + (quote.token || '') + '.', solutions: JSON.stringify((quote.items || []).map(function(item, index) { return { id: 'solution-' + index + '-' + item.serviceId, serviceId: item.serviceId || '', name: item.name || '', billing: item.billing || 'Uma vez', value: Number(item.price || 0) * Number(item.quantity || 1) }; })),
       quoteId: quote.id, quoteToken: quote.token || '', sourceStatus: quote.status || 'Rascunho', epicKey: 'EPIC-' + projectId_(quote.id), createdAt: stamp, updatedAt: stamp
     });
+    createdSprint = createSprint_({ projectId: project.id, name: 'Sprint 1', goal: 'Iniciar as histórias do orçamento.', startDate: project.startDate, endDate: addDays_(project.startDate, 14), status: 'Ativa', durationDays: 15 });
     var stories = (quote.items || []).map(function(item, index) {
-      var story = createRow_('Historias', { projectId: project.id, quoteItemId: item.id || '', serviceId: item.serviceId || '', title: item.name || 'História ' + (index + 1), description: item.description || '', status: 'Backlog', priority: 'P3 - Normal', assignee: '', startDate: project.startDate, dueDate: project.dueDate, position: index });
+      var story = createRow_('Historias', { projectId: project.id, sprintId: createdSprint.id, quoteItemId: item.id || '', serviceId: item.serviceId || '', title: item.name || 'História ' + (index + 1), description: item.description || '', status: 'Backlog', priority: 'P3 - Normal', assignee: '', startDate: project.startDate, dueDate: project.dueDate, position: index });
       createdStoryIds.push(story.id); return story;
     });
     updateRow_('Orcamentos', { id: quote.id, projectId: project.id });
     createRow_('Atividades', { entityType: 'project', entityId: project.id, type: 'system', message: 'Projeto criado a partir do orçamento.', url: '', author: 'Haus' });
-    return { project: project, stories: stories };
+    return { project: project, stories: stories, sprints: [createdSprint] };
   } catch (error) {
     createdStoryIds.forEach(function(id) { try { deleteRow_('Historias', { id: id }); } catch (ignore) {} });
+    if (createdSprint) { try { deleteRow_('Sprints', { id: createdSprint.id }); } catch (ignoreSprint) {} }
     if (project) { try { deleteRow_('Projetos', { id: project.id }); } catch (ignoreProject) {} }
     throw error;
   } finally { lock.releaseLock(); }
@@ -474,8 +480,10 @@ function projectId_(quoteId) { return String(quoteId || '').replace(/[^a-zA-Z0-9
 function createStory_(body) {
   if (!body.projectId || !String(body.title || '').trim()) throw new Error('Projeto e título da história são obrigatórios.');
   if (!rows_('Projetos').some(function(item) { return item.id === body.projectId; })) throw new Error('Projeto não encontrado.');
-  return createRow_('Historias', { projectId: body.projectId, quoteItemId: body.quoteItemId || '', serviceId: body.serviceId || '', title: String(body.title).trim(), description: body.description || '', status: body.status || 'Backlog', priority: body.priority || 'P3 - Normal', assignee: body.assignee || '', startDate: body.startDate || '', dueDate: body.dueDate || '', position: Number(body.position || 0) });
+  return createRow_('Historias', { projectId: body.projectId, sprintId: body.sprintId || '', quoteItemId: body.quoteItemId || '', serviceId: body.serviceId || '', title: String(body.title).trim(), description: body.description || '', status: body.status || 'Backlog', priority: body.priority || 'P3 - Normal', assignee: body.assignee || '', startDate: body.startDate || '', dueDate: body.dueDate || '', position: Number(body.position || 0) });
 }
+function addDays_(value, days) { var match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/); if (!match) return String(value || ''); var date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])); date.setDate(date.getDate() + Number(days || 0)); return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0'); }
+function createSprint_(body) { if (!body.projectId || !String(body.name || '').trim() || !body.startDate || !body.endDate) throw new Error('Projeto, nome e período da sprint são obrigatórios.'); if (!rows_('Projetos').some(function(item) { return item.id === body.projectId; })) throw new Error('Projeto não encontrado.'); return createRow_('Sprints', { projectId: body.projectId, name: String(body.name).trim(), goal: String(body.goal || '').trim(), startDate: body.startDate, endDate: body.endDate, status: body.status || 'Planejada', durationDays: Math.max(1, Number(body.durationDays || 15)) }); }
 function createSubtask_(body) {
   if (!body.storyId || !String(body.title || '').trim()) throw new Error('História e título da subtarefa são obrigatórios.');
   if (!rows_('Historias').some(function(item) { return item.id === body.storyId; })) throw new Error('História não encontrada.');

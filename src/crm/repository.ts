@@ -1,5 +1,5 @@
 import { demoData } from './demo-data'
-import type { Activity, AiDraft, Client, Contract, ContractModel, DashboardData, FinancialEntry, Installment, Project, Quote, Service, Story, Subtask } from './types'
+import type { Activity, AiDraft, Client, Contract, ContractModel, DashboardData, FinancialEntry, Installment, Project, Quote, Service, Story, Subtask, Sprint } from './types'
 import { announce } from './Toast'
 import { clearCrmSession, getCrmSessionToken } from './auth'
 import { recurrenceCutoffBefore } from './finance-utils'
@@ -76,6 +76,7 @@ export const crmRepository = {
       stories: response.stories ?? [],
       subtasks: response.subtasks ?? [],
       activities: response.activities ?? [],
+      sprints: response.sprints ?? [],
     }
   },
   async createClient(input: Omit<Client, 'id' | 'projects' | 'quotes'>) {
@@ -123,19 +124,28 @@ export const crmRepository = {
     }
     return request<{ id: string }>('project.delete', { method: 'POST', body: JSON.stringify({ action: 'project.delete', id }) }).then(result => { announce('Projeto excluído.'); return result })
   },
-  async createProjectFromQuote(quoteId: string): Promise<{ project: Project; stories: Story[]; duplicate?: boolean }> {
+  async createProjectFromQuote(quoteId: string): Promise<{ project: Project; stories: Story[]; sprints?: Sprint[]; duplicate?: boolean }> {
     if (!quoteId) throw new Error('Selecione um orçamento.')
     if (!endpoint) {
       const quote = demoState.quotes.find(item => item.id === quoteId)
       if (!quote) throw new Error('Orçamento não encontrado.')
       const existing = demoState.projects.find(item => item.quoteId === quoteId)
-      if (existing) return { project: existing, stories: (demoState.stories ?? []).filter(item => item.projectId === existing.id), duplicate: true }
+      if (existing) return { project: existing, stories: (demoState.stories ?? []).filter(item => item.projectId === existing.id), sprints: (demoState.sprints ?? []).filter(item => item.projectId === existing.id), duplicate: true }
       const project: Project = { id: `pro-${Date.now()}`, name: quote.company || quote.clientName, clientId: quote.clientId, clientName: quote.clientName, status: 'Briefing', startDate: new Date().toISOString().slice(0, 10), dueDate: quote.expiresAt, nextAction: 'Revisar histórias do orçamento', upsellDate: '', value: quote.items.reduce((sum, item) => sum + item.price * item.quantity, 0), notes: `Projeto criado a partir do orçamento ${quote.token}.`, solutions: quote.items.map((item, index) => ({ id: `solution-${index}-${item.serviceId}`, serviceId: item.serviceId, name: item.name, billing: item.billing, value: item.price * item.quantity })), quoteId: quote.id, quoteToken: quote.token, sourceStatus: quote.status, epicKey: `EPIC-${quote.id.slice(-8)}` }
-      const stories: Story[] = quote.items.map((item, index) => ({ id: `story-${Date.now()}-${index}`, projectId: project.id, quoteItemId: item.serviceId, serviceId: item.serviceId, title: item.name, description: item.description ?? '', status: 'Backlog', priority: 'P3 - Normal', assignee: '', startDate: project.startDate, dueDate: project.dueDate, position: index, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }))
-      demoState.projects.unshift(project); demoState.stories = [...(demoState.stories ?? []), ...stories]; quote.projectId = project.id; demoState.activities = [...(demoState.activities ?? []), { id: `activity-${Date.now()}`, entityType: 'project', entityId: project.id, type: 'system', message: 'Projeto criado a partir do orçamento.', author: 'Haus', createdAt: new Date().toISOString() }]
-      persistDemoState(); announce('Projeto criado a partir do orçamento.'); return { project, stories }
+      const sprint: Sprint = { id: `sprint-${Date.now()}`, projectId: project.id, name: 'Sprint 1', goal: 'Iniciar as histórias do orçamento.', startDate: project.startDate, endDate: new Date(new Date(`${project.startDate}T12:00:00`).getTime() + 14 * 86400000).toISOString().slice(0, 10), status: 'Ativa', durationDays: 15, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+      const stories: Story[] = quote.items.map((item, index) => ({ id: `story-${Date.now()}-${index}`, projectId: project.id, sprintId: sprint.id, quoteItemId: item.serviceId, serviceId: item.serviceId, title: item.name, description: item.description ?? '', status: 'Backlog', priority: 'P3 - Normal', assignee: '', startDate: project.startDate, dueDate: project.dueDate, position: index, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }))
+      demoState.projects.unshift(project); demoState.sprints = [...(demoState.sprints ?? []), sprint]; demoState.stories = [...(demoState.stories ?? []), ...stories]; quote.projectId = project.id; demoState.activities = [...(demoState.activities ?? []), { id: `activity-${Date.now()}`, entityType: 'project', entityId: project.id, type: 'system', message: 'Projeto criado a partir do orçamento.', author: 'Haus', createdAt: new Date().toISOString() }]
+      persistDemoState(); announce('Projeto criado a partir do orçamento.'); return { project, stories, sprints: [sprint] }
     }
-    return request<{ project: Project; stories: Story[]; duplicate?: boolean }>('project.fromQuote', { method: 'POST', body: JSON.stringify({ action: 'project.fromQuote', quoteId }) }).then(result => { announce(result.duplicate ? 'Este orçamento já possui um projeto.' : 'Projeto criado a partir do orçamento.'); return result })
+    return request<{ project: Project; stories: Story[]; sprints?: Sprint[]; duplicate?: boolean }>('project.fromQuote', { method: 'POST', body: JSON.stringify({ action: 'project.fromQuote', quoteId }) }).then(result => { announce(result.duplicate ? 'Este orçamento já possui um projeto.' : 'Projeto criado a partir do orçamento.'); return result })
+  },
+  async createSprint(input: Omit<Sprint, 'id' | 'createdAt' | 'updatedAt'>) {
+    if (!endpoint) { const sprint = { ...input, id: `sprint-${Date.now()}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; demoState.sprints = [...(demoState.sprints ?? []), sprint]; persistDemoState(); announce('Sprint criada.'); return sprint }
+    return request<Sprint>('sprint.create', { method: 'POST', body: JSON.stringify({ action: 'sprint.create', ...input }) })
+  },
+  async updateSprint(id: string, input: Omit<Sprint, 'id' | 'createdAt' | 'updatedAt'>) {
+    if (!endpoint) { const sprint = (demoState.sprints ?? []).find(item => item.id === id); if (!sprint) throw new Error('Sprint não encontrada.'); Object.assign(sprint, input, { updatedAt: new Date().toISOString() }); persistDemoState(); return sprint }
+    return request<Sprint>('sprint.update', { method: 'POST', body: JSON.stringify({ action: 'sprint.update', id, ...input }) })
   },
   async createStory(input: Omit<Story, 'id' | 'createdAt' | 'updatedAt'>) {
     if (!endpoint) { const story = { ...input, id: `story-${Date.now()}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; demoState.stories = [...(demoState.stories ?? []), story]; persistDemoState(); return story }

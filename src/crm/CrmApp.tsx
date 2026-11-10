@@ -45,7 +45,7 @@ import {
   useConfirm,
   useToast,
 } from "./Toast";
-import { EditProject } from "./EditProject";
+import { ProjectWorkspace } from "./ProjectWorkspace";
 import { NewProjectFromQuote } from "./NewProjectFromQuote";
 import { NewQuoteWithClient } from "./NewQuoteWithClient";
 import { InlineServiceCreator } from "./InlineServiceCreator";
@@ -1140,6 +1140,9 @@ function Projects({
       onProjectOpened?.();
     }
   }, [openProjectId, data.projects]);
+  if (selected) {
+    return <ProjectWorkspace project={selected} data={data} close={() => setSelected(null)} reload={reload} />;
+  }
   const moveProject = (id: string, nextStatus: ProjectStatus) => {
     const previous =
       statusOverrides[id] ??
@@ -1292,18 +1295,6 @@ function Projects({
           </div>
         </div>
       </div>
-      {selected && (
-        <EditProject
-          project={selected}
-          data={data}
-          clients={data.clients}
-          services={data.services}
-          stages={stages}
-          close={() => setSelected(null)}
-          reload={reload}
-          drawer
-        />
-      )}
     </>
   );
 }
@@ -3159,6 +3150,8 @@ function NewFinance({
     status: "Pendente" as FinancialStatus,
     recurrence: "Nenhuma" as FinancialRecurrence,
     nextDueDate: "",
+    recurrenceEndDate: "",
+    recurrenceCount: "" as string | number,
     clientId: "",
     projectId: "",
     notes: "",
@@ -3177,7 +3170,7 @@ function NewFinance({
     try {
       const client = clients.find(item => item.id === form.clientId)
       const project = projects.find(item => item.id === form.projectId)
-      await crmRepository.createFinance({ ...form, amount, clientName: client?.company || '', projectName: project?.name || '' });
+      await crmRepository.createFinance({ ...form, amount, recurrenceCount: form.recurrenceCount ? Number(form.recurrenceCount) : undefined, clientName: client?.company || '', projectName: project?.name || '' });
       close();
       reload();
     } catch (cause) {
@@ -3278,6 +3271,10 @@ function NewFinance({
                   recurrence: e.target.value as FinancialRecurrence,
                   nextDueDate:
                     e.target.value === "Nenhuma" ? "" : form.nextDueDate,
+                  recurrenceEndDate:
+                    e.target.value === "Nenhuma" ? "" : form.recurrenceEndDate,
+                  recurrenceCount:
+                    e.target.value === "Nenhuma" ? "" : form.recurrenceCount,
                 })
               }
             >
@@ -3289,16 +3286,16 @@ function NewFinance({
           </Field>
         </div>
         {form.recurrence !== "Nenhuma" && (
-          <Field label="Próximo vencimento">
-            <input
-              required
-              type="date"
-              value={form.nextDueDate}
-              onChange={(e) =>
-                setForm({ ...form, nextDueDate: e.target.value })
-              }
-            />
-          </Field>
+          <>
+            <Field label="Próximo vencimento">
+              <input required type="date" value={form.nextDueDate} onChange={(e) => setForm({ ...form, nextDueDate: e.target.value })} />
+            </Field>
+            <div className="crm-form-row">
+              <Field label="Termina em (opcional)"><input type="date" min={form.nextDueDate || form.date} value={form.recurrenceEndDate} onChange={(e) => setForm({ ...form, recurrenceEndDate: e.target.value })} /></Field>
+              <Field label="Ou total de cobranças"><input type="number" min="1" placeholder="Sem limite" value={form.recurrenceCount} onChange={(e) => setForm({ ...form, recurrenceCount: e.target.value ? Number(e.target.value) : "" })} /></Field>
+            </div>
+            <p className="crm-form-note">Defina uma data final ou a quantidade total de cobranças. Se deixar ambos vazios, a recorrência continua sem limite.</p>
+          </>
         )}
         <Field label="Observações">
           <textarea

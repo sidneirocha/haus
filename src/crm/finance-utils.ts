@@ -37,6 +37,10 @@ function occurrenceDate(entry: FinancialEntry, targetMonth: string) {
   if (entry.recurrenceEndDate && targetMonth > entry.recurrenceEndDate.slice(0, 7)) return null
   const difference = monthValue(targetMonth) - monthValue(anchor)
   if (difference < 0 || difference % step !== 0) return null
+  if (entry.recurrenceCount) {
+    const totalOccurrences = Math.floor((monthValue(targetMonth) - monthValue(entry.date)) / step) + 1
+    if (totalOccurrences > entry.recurrenceCount) return null
+  }
   const [year, month] = targetMonth.split('-').map(Number)
   const day = Math.min(Number(anchor.slice(8, 10)) || 1, daysInMonth(year, month))
   return `${targetMonth}-${String(day).padStart(2, '0')}`

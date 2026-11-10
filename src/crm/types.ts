@@ -50,6 +50,7 @@ export type WorkStatus = 'Backlog' | 'Em andamento' | 'Em revisão' | 'Concluíd
 export type Story = {
   id: string
   projectId: string
+  sprintId?: string
   quoteItemId?: string
   serviceId?: string
   title: string
@@ -89,6 +90,19 @@ export type Activity = {
   author: string
   createdAt: string
   updatedAt?: string
+}
+
+export type Sprint = {
+  id: string
+  projectId: string
+  name: string
+  goal: string
+  startDate: string
+  endDate: string
+  status: 'Planejada' | 'Ativa' | 'Concluída'
+  durationDays: number
+  createdAt: string
+  updatedAt: string
 }
 
 export type Service = {
@@ -201,6 +215,7 @@ export type FinancialEntry = {
   projected?: boolean
   sourceId?: string
   recurrenceEndDate?: string
+  recurrenceCount?: number
   recurrenceStatuses?: Record<string, FinancialStatus>
 }
 
@@ -216,4 +231,5 @@ export type DashboardData = {
   stories?: Story[]
   subtasks?: Subtask[]
   activities?: Activity[]
+  sprints?: Sprint[]
 }
