@@ -11,8 +11,8 @@
   },
   "vars": {
     "CRM_ENDPOINT": "https://script.google.com/macros/s/AKfycbwhBycqlcQUB6SOYGVy2tPDJFk0-aT5vc--8YiFznpZslbpz_zrtgFBsumt7KnzPVhi/exec",
-    "RP_ID": "haus.art.br",
-    "ORIGIN": "https://haus.art.br"
+    "RP_ID": "haus-webauthn.sidneisrbarros.workers.dev",
+    "ORIGIN": "https://haus-webauthn.sidneisrbarros.workers.dev"
   },
   "kv_namespaces": [
     {

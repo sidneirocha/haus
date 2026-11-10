@@ -5,7 +5,7 @@ export type CrmSession = {
 }
 
 const SESSION_KEY = 'haus-crm-session'
-const endpoint = import.meta.env.VITE_CRM_ENDPOINT as string | undefined
+const endpoint = ((import.meta.env.VITE_CRM_ENDPOINT as string | undefined) || 'https://script.google.com/macros/s/AKfycbwhBycqlcQUB6SOYGVy2tPDJFk0-aT5vc--8YiFznpZslbpz_zrtgFBsumt7KnzPVhi/exec')
 const webauthnEndpoint = ((import.meta.env.VITE_WEBAUTHN_ENDPOINT as string | undefined) || 'https://haus-webauthn.sidneisrbarros.workers.dev').replace(/\/$/, '')
 
 const emitAuthChange = () => window.dispatchEvent(new Event('haus-crm-auth'))
