@@ -4,7 +4,7 @@ import { announce } from './Toast'
 import { clearCrmSession, getCrmSessionToken } from './auth'
 import { recurrenceCutoffBefore } from './finance-utils'
 
-const endpoint = import.meta.env.VITE_CRM_ENDPOINT as string | undefined
+const endpoint = ((import.meta.env.VITE_CRM_ENDPOINT as string | undefined) || 'https://script.google.com/macros/s/AKfycbwhBycqlcQUB6SOYGVy2tPDJFk0-aT5vc--8YiFznpZslbpz_zrtgFBsumt7KnzPVhi/exec')
 const DEMO_STORAGE_KEY = 'haus-crm-demo-state'
 
 export const isCrmDemo = !endpoint

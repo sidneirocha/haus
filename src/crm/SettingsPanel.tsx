@@ -3,7 +3,7 @@ import { X } from 'lucide-react'
 import { isCrmDemo } from './repository'
 
 export function SettingsPanel({ close, stages, onSaveStages }: { close: () => void; stages: string[]; onSaveStages: (stages: string[]) => void }) {
-  const endpoint = import.meta.env.VITE_CRM_ENDPOINT as string | undefined
+  const endpoint = ((import.meta.env.VITE_CRM_ENDPOINT as string | undefined) || 'https://script.google.com/macros/s/AKfycbwhBycqlcQUB6SOYGVy2tPDJFk0-aT5vc--8YiFznpZslbpz_zrtgFBsumt7KnzPVhi/exec')
   const [stageText, setStageText] = useState(stages.join(', '))
   const saveStages = () => {
     const next = stageText.split(',').map(stage => stage.trim()).filter(Boolean).filter((stage, index, list) => list.indexOf(stage) === index)
