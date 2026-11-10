@@ -109,6 +109,12 @@ const date = (value?: string) => {
         .replace(".", "")
     : "—";
 };
+const dateNumeric = (value?: string) => {
+  const parsed = parseDate(value);
+  return parsed
+    ? new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(parsed)
+    : "—";
+};
 const daysUntil = (value?: string) => {
   const parsed = parseDate(value);
   return parsed ? Math.ceil((parsed.getTime() - Date.now()) / 86400000) : 0;
@@ -3387,7 +3393,7 @@ function PublicQuote({ token }: { token: string }) {
           <p>
             {expired
               ? `Este orçamento expirou em ${date(quote.expiresAt)}.`
-              : `Orçamento válido até ${date(quote.expiresAt)} · preparado pela Haus.`}
+              : `Orçamento válido até ${dateNumeric(quote.expiresAt)}.`}
           </p>
         </div>
         <div className="crm-public-body">
@@ -3433,7 +3439,7 @@ function PublicQuote({ token }: { token: string }) {
                     <div>
                       <p>Pagamento via Pix</p>
                       <strong>{quote.pixKey}</strong>
-                      <button className="crm-public-copy-pix" type="button" onClick={async () => { try { await navigator.clipboard?.writeText(quote.pixKey); setCopiedPix(true); window.setTimeout(() => setCopiedPix(false), 2200) } catch { setCopiedPix(false) } }}><Copy size={13} />{copiedPix ? 'Chave copiada' : 'Copiar chave Pix'}</button>
+                      <button className="crm-public-copy-pix" type="button" onClick={async () => { try { const cleanPixKey = quote.pixKey.replace(/[.\-/\s]/g, ''); await navigator.clipboard?.writeText(cleanPixKey); setCopiedPix(true); window.setTimeout(() => setCopiedPix(false), 2200) } catch { setCopiedPix(false) } }}><Copy size={13} />{copiedPix ? 'Chave copiada' : 'Copiar chave Pix'}</button>
                     </div>
                     <img src={path("/assets/pix-qr.png")} alt="QR Code Pix" />
                   </div>
