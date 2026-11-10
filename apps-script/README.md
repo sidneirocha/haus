@@ -1,5 +1,16 @@
 # Haus CRM — Apps Script
 
+## Passkeys do CRM
+
+O frontend e o Worker `haus-webauthn` já possuem o fluxo de passkey preparado. Para ativar o login por biometria em produção:
+
+1. Publique uma nova versão deste `Code.gs` no mesmo Web app. A versão precisa incluir a ação `auth.session`, usada pelo Worker para validar o token temporário do CRM.
+2. No Worker, em **Settings → Variables and secrets**, configure `ADMIN_EMAIL` e `ADMIN_KEY` como secrets. Use exatamente os mesmos valores das propriedades do Apps Script; não os coloque no Git nem no frontend.
+3. Mantenha as variáveis públicas do Worker `CRM_ENDPOINT`, `RP_ID=haus.art.br` e `ORIGIN=https://haus.art.br`.
+4. Abra o CRM com login normal e use **Cadastrar biometria** no menu lateral. Depois disso, a tela de login exibirá **Entrar com biometria** para esse e-mail.
+
+O namespace KV `haus-webauthn-credentials` está vinculado ao Worker com o binding `WEBAUTHN_KV`. Challenges expiram em cinco minutos e as credenciais armazenadas contêm apenas a chave pública e metadados WebAuthn.
+
 ## Configuração rápida
 
 1. Crie ou abra a planilha do CRM no Google Sheets.
