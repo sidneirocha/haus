@@ -19,6 +19,9 @@ export type Client = {
   id: string
   name: string
   company: string
+  legalName?: string
+  cnpj?: string
+  address?: string
   email: string
   phone: string
   notes: string
@@ -163,6 +166,9 @@ export type Contract = {
   clientId: string
   clientName: string
   company: string
+  legalName?: string
+  cnpj?: string
+  clientAddress?: string
   projectId?: string
   projectName?: string
   quoteId?: string

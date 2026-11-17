@@ -5,7 +5,7 @@
  * Nunca coloque esses valores no frontend ou neste arquivo versionado.
  */
 const SHEETS = {
-  Clientes: ['id', 'name', 'company', 'email', 'phone', 'notes', 'createdAt', 'updatedAt'],
+  Clientes: ['id', 'name', 'company', 'legalName', 'cnpj', 'address', 'email', 'phone', 'notes', 'createdAt', 'updatedAt'],
   Projetos: ['id', 'name', 'clientId', 'clientName', 'status', 'startDate', 'dueDate', 'nextAction', 'upsellDate', 'value', 'notes', 'solutions', 'quoteId', 'quoteToken', 'sourceStatus', 'epicKey', 'createdAt', 'updatedAt'],
   Historias: ['id', 'projectId', 'sprintId', 'quoteItemId', 'serviceId', 'title', 'description', 'status', 'priority', 'assignee', 'startDate', 'dueDate', 'position', 'createdAt', 'updatedAt'],
   Sprints: ['id', 'projectId', 'name', 'goal', 'startDate', 'endDate', 'status', 'durationDays', 'createdAt', 'updatedAt'],
@@ -16,7 +16,7 @@ const SHEETS = {
   Parcelas: ['id', 'quoteId', 'dueDate', 'amount', 'paymentUrl', 'status', 'paidAt'],
   Lancamentos_Financeiros: ['id', 'date', 'description', 'type', 'category', 'amount', 'status', 'recurrence', 'nextDueDate', 'recurrenceEndDate', 'recurrenceCount', 'recurrenceStatuses', 'clientId', 'clientName', 'projectId', 'projectName', 'notes', 'createdAt', 'updatedAt'],
   Modelos_Contrato: ['id', 'name', 'description', 'content', 'version', 'active', 'createdAt', 'updatedAt'],
-  Contratos: ['id', 'token', 'clientId', 'clientName', 'company', 'projectId', 'projectName', 'quoteId', 'modelId', 'modelName', 'title', 'content', 'status', 'createdAt', 'updatedAt', 'expiresAt', 'signedName', 'signedEmail', 'signerDocument', 'signerIp', 'signedAt', 'clientEmail', 'clientPhone', 'signatureHash'],
+  Contratos: ['id', 'token', 'clientId', 'clientName', 'company', 'legalName', 'cnpj', 'clientAddress', 'projectId', 'projectName', 'quoteId', 'modelId', 'modelName', 'title', 'content', 'status', 'createdAt', 'updatedAt', 'expiresAt', 'signedName', 'signedEmail', 'signerDocument', 'signerIp', 'signedAt', 'clientEmail', 'clientPhone', 'signatureHash'],
   Eventos_Contrato: ['id', 'contractId', 'type', 'occurredAt', 'actor', 'metadata'],
   AI_Rascunhos: ['id', 'briefing', 'clientId', 'clientName', 'status', 'result', 'model', 'createdAt', 'updatedAt'],
   Atividades: ['id', 'entityType', 'entityId', 'type', 'message', 'url', 'author', 'createdAt', 'updatedAt'],
@@ -295,6 +295,9 @@ function contracts_() {
     var client = rows_('Clientes').filter(function(item) { return item.id === contract.clientId; })[0];
     contract.clientEmail = contract.clientEmail || (client && client.email) || '';
     contract.clientPhone = contract.clientPhone || (client && client.phone) || '';
+    contract.legalName = contract.legalName || (client && client.legalName) || '';
+    contract.cnpj = contract.cnpj || (client && client.cnpj) || '';
+    contract.clientAddress = contract.clientAddress || (client && client.address) || '';
     contract.events = events.filter(function(event) { return event.contractId === contract.id; }).sort(function(a, b) { return new Date(b.occurredAt) - new Date(a.occurredAt); });
     return contract;
   });
@@ -337,7 +340,7 @@ function deleteContractModel_(body) {
 function createContract_(body) {
   if (!body.clientId || !body.modelId || !String(body.title || '').trim() || !String(body.content || '').trim() || !body.expiresAt) throw new Error('Cliente, modelo, título, conteúdo e validade são obrigatórios.');
   var client = rows_('Clientes').filter(function(item) { return item.id === body.clientId; })[0];
-  const contract = createRow_('Contratos', { token: 'haus-contrato-' + Utilities.getUuid().replace(/-/g, '').slice(0, 16), clientId: body.clientId, clientName: body.clientName || (client && client.name) || '', company: body.company || (client && client.company) || '', projectId: body.projectId || '', projectName: body.projectName || '', quoteId: body.quoteId || '', modelId: body.modelId, modelName: body.modelName || '', title: String(body.title).trim(), content: String(body.content), status: 'Rascunho', expiresAt: body.expiresAt, signedName: '', signedEmail: '', signerDocument: '', signerIp: '', signedAt: '', clientEmail: (client && client.email) || '', clientPhone: (client && client.phone) || '', signatureHash: '' });
+  const contract = createRow_('Contratos', { token: 'haus-contrato-' + Utilities.getUuid().replace(/-/g, '').slice(0, 16), clientId: body.clientId, clientName: body.clientName || (client && client.name) || '', company: body.company || (client && client.company) || '', legalName: (client && client.legalName) || '', cnpj: (client && client.cnpj) || '', clientAddress: (client && client.address) || '', projectId: body.projectId || '', projectName: body.projectName || '', quoteId: body.quoteId || '', modelId: body.modelId, modelName: body.modelName || '', title: String(body.title).trim(), content: String(body.content), status: 'Rascunho', expiresAt: body.expiresAt, signedName: '', signedEmail: '', signerDocument: '', signerIp: '', signedAt: '', clientEmail: (client && client.email) || '', clientPhone: (client && client.phone) || '', signatureHash: '' });
   addContractEvent_(contract.id, 'Criado', 'Haus', 'Versão inicial do contrato.');
   return contractById_(contract.id);
 }

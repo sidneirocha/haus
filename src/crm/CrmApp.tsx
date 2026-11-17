@@ -770,6 +770,9 @@ function Clients({
   const [form, setForm] = useState({
     name: "",
     company: "",
+    legalName: "",
+    cnpj: "",
+    address: "",
     email: "",
     phone: "",
     notes: "",
@@ -794,6 +797,9 @@ function Clients({
       setForm({
         name: selected.name,
         company: selected.company,
+        legalName: selected.legalName ?? "",
+        cnpj: selected.cnpj ?? "",
+        address: selected.address ?? "",
         email: selected.email,
         phone: selected.phone,
         notes: selected.notes,
@@ -901,6 +907,27 @@ function Clients({
               <input
                 value={form.company}
                 onChange={(e) => setForm({ ...form, company: e.target.value })}
+                onBlur={() => void save()}
+              />
+            </Field>
+            <Field label="Razão social">
+              <input
+                value={form.legalName}
+                onChange={(e) => setForm({ ...form, legalName: e.target.value })}
+                onBlur={() => void save()}
+              />
+            </Field>
+            <Field label="CNPJ">
+              <input
+                value={form.cnpj}
+                onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
+                onBlur={() => void save()}
+              />
+            </Field>
+            <Field label="Endereço">
+              <textarea
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
                 onBlur={() => void save()}
               />
             </Field>
@@ -2495,6 +2522,9 @@ function NewClient({
   const [form, setForm] = useState({
     name: "",
     company: "",
+    legalName: "",
+    cnpj: "",
+    address: "",
     email: "",
     phone: "",
     notes: "",
@@ -2537,6 +2567,15 @@ function NewClient({
             value={form.company}
             onChange={(e) => update("company", e.target.value)}
           />
+        </Field>
+        <Field label="Razão social">
+          <input value={form.legalName} onChange={(e) => update("legalName", e.target.value)} />
+        </Field>
+        <Field label="CNPJ">
+          <input value={form.cnpj} onChange={(e) => update("cnpj", e.target.value)} />
+        </Field>
+        <Field label="Endereço">
+          <textarea value={form.address} onChange={(e) => update("address", e.target.value)} />
         </Field>
         <Field label="E-mail">
           <input
@@ -2586,6 +2625,9 @@ function EditClient({
   const [form, setForm] = useState({
     name: client.name,
     company: client.company,
+    legalName: client.legalName ?? "",
+    cnpj: client.cnpj ?? "",
+    address: client.address ?? "",
     email: client.email,
     phone: client.phone,
     notes: client.notes,
@@ -2656,6 +2698,15 @@ function EditClient({
             value={form.company}
             onChange={(e) => setForm({ ...form, company: e.target.value })}
           />
+        </Field>
+        <Field label="Razão social">
+          <input value={form.legalName} onChange={(e) => setForm({ ...form, legalName: e.target.value })} />
+        </Field>
+        <Field label="CNPJ">
+          <input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} />
+        </Field>
+        <Field label="Endereço">
+          <textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
         </Field>
         <Field label="E-mail">
           <input

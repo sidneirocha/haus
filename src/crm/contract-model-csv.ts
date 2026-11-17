@@ -1,7 +1,7 @@
 import type { ContractModel } from './types'
 
 export type ContractModelImport = Omit<ContractModel, 'id' | 'version' | 'createdAt' | 'updatedAt'>
-const tags = ['{{client.company}}', '{{client.name}}', '{{client.email}}', '{{project.name}}', '{{quote.total}}']
+const tags = ['{{client.company}}', '{{client.legalName}}', '{{client.cnpj}}', '{{client.address}}', '{{client.name}}', '{{client.email}}', '{{project.name}}', '{{quote.total}}']
 const normalize = (value: string) => value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[ _-]+/g, '')
 const aliases: Record<string, string> = { nome: 'name', name: 'name', descricao: 'description', description: 'description', conteudo: 'content', content: 'content', ativo: 'active', active: 'active' }
 
