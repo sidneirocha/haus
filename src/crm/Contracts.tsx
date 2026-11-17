@@ -243,7 +243,7 @@ export function PublicContract({ token, demoContract }: { token: string; demoCon
         <label className="crm-sign-consent"><input type="checkbox" checked={form.consent} onChange={event => setForm({ ...form, consent: event.target.checked })} /><span className="crm-sign-checkmark"><Check size={14} /></span><span>Declaro que li e aceito este contrato.</span></label>
         {error && <p className="crm-form-error" role="alert">{error}</p>}<button className="crm-button primary crm-sign-submit" type="submit" disabled={busy}>{busy ? <><Spinner />Registrando…</> : <><PenLine size={15} />Assinar contrato</>}</button>
       </form>}
-      <p className="crm-legal-note">Este fluxo registra aceite eletrônico para o MVP. Para validade específica, reconhecimento de firma ou certificado ICP-Brasil, solicite orientação jurídica.</p>
+      <p className="crm-legal-note">Este contrato foi aceito eletronicamente por meio da plataforma Haus, com registro do signatário, consentimento, data e hora, versão do documento e hash de auditoria.</p>
     </div><footer><span>haus.art.br</span><a href={appPath('/')}>Conheça a Haus <ExternalLink size={14} /></a></footer>
   </div></div>
 }
