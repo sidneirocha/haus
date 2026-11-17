@@ -3902,8 +3902,8 @@ export function CrmRoute() {
   const pathname = window.location.pathname;
   const quoteMatch = pathname.match(/\/orcamento\/([^/]+)/);
   const contractMatch = pathname.match(/\/contrato\/([^/]+)/);
-  if (contractMatch) return <PublicContract token={contractMatch[1]} />;
-  if (quoteMatch) return <PublicQuote token={quoteMatch[1]} />;
+  if (contractMatch) return <ToastProvider><PublicContract token={contractMatch[1]} /></ToastProvider>;
+  if (quoteMatch) return <ToastProvider><PublicQuote token={quoteMatch[1]} /></ToastProvider>;
   return (
     <CrmAuthGate>
       <CrmApp />
