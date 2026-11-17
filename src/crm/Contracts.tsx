@@ -137,16 +137,27 @@ function ContractDrawer({ contract, close, reload, onCopy, onEdit }: { contract:
 
 function AiDraftModal({ data, close, reload }: { data: DashboardData; close: () => void; reload: () => void }) { const [briefing, setBriefing] = useState(''); const [clientId, setClientId] = useState(data.clients[0]?.id ?? ''); const [draft, setDraft] = useState<Awaited<ReturnType<typeof crmRepository.createAiDraft>> | null>(null); const [busy, setBusy] = useState(false); const { notify } = useToast(); const generate = async () => { setBusy(true); try { setDraft(await crmRepository.createAiDraft({ briefing, clientId })); reload() } catch (cause) { notify(cause instanceof Error ? cause.message : 'Não foi possível gerar o rascunho.', 'error') } finally { setBusy(false) } }; return <Modal title="Preparar orçamento com IA" onClose={close}><div className="crm-ai-panel"><div className="crm-contract-validation"><Sparkles size={16} /><span>A IA ficará preparada para receber um provedor seguro. O resultado sempre passa por revisão humana.</span></div><Field label="Cliente"><select value={clientId} onChange={event => setClientId(event.target.value)}>{data.clients.map(item => <option key={item.id} value={item.id}>{item.company}</option>)}</select></Field><Field label="Briefing"><textarea required rows={6} value={briefing} onChange={event => setBriefing(event.target.value)} placeholder="Ex.: site institucional com homepage, páginas de serviço e publicação em 30 dias." /></Field><button className="crm-button primary" onClick={generate} disabled={busy || !briefing.trim()}>{busy ? <><Spinner />Preparando…</> : <><Sparkles size={15} />Gerar rascunho</>}</button>{draft && <div className="crm-ai-result"><strong>Rascunho salvo para revisão</strong>{draft.result.items.map(item => <div key={item.serviceId}><span>{item.name}</span><strong>{money(item.price)}</strong></div>)}<p>{draft.result.notes}</p><small>{draft.result.alerts.join(' ')}</small></div>}</div></Modal> }
 
+function inlineMarkdown(value: string) {
+  return value.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) return <strong key={index}>{part.slice(2, -2)}</strong>
+    if (part.startsWith('`') && part.endsWith('`')) return <code key={index}>{part.slice(1, -1)}</code>
+    return <span key={index}>{part}</span>
+  })
+}
+
 function ContractDocument({ content }: { content: string }) {
   return <div className="crm-contract-document">{content.split(/\r?\n/).map((line, index) => {
     const value = line.trim()
     if (!value) return <div className="crm-contract-document-break" key={`break-${index}`} aria-hidden="true" />
-    const section = value.match(/^(\d+\.\s+)(.+)$/)
-    if (section) return <h2 className="crm-contract-document-heading" key={index}><span>{section[1]}</span>{section[2]}</h2>
-    const party = value.match(/^(CONTRATANTE|CONTRATADA):\s*(.*)$/)
-    if (party) return <p className="crm-contract-document-party" key={index}><strong>{party[1]}:</strong> {party[2]}</p>
+    const markdownHeading = value.match(/^#{1,6}\s+(.+)$/)
+    if (markdownHeading) return <h2 className="crm-contract-document-heading" key={index}>{inlineMarkdown(markdownHeading[1])}</h2>
+    const numberedHeading = value.match(/^(\d+\.\s+)(.+)$/)
+    if (numberedHeading) return <h2 className="crm-contract-document-heading" key={index}><span>{numberedHeading[1]}</span>{inlineMarkdown(numberedHeading[2])}</h2>
+    const party = value.match(/^\*\*(CONTRATANTE|CONTRATADA):\*\*\s*(.*)$/)
+    if (party) return <p className="crm-contract-document-party" key={index}><strong>{party[1]}:</strong> {inlineMarkdown(party[2])}</p>
     if (value === 'CONTRATO DE PRESTAÇÃO DE SERVIÇOS') return <p className="crm-contract-document-kicker" key={index}>{value}</p>
-    return <p key={index}>{value}</p>
+    if (/^[-*]\s+/.test(value)) return <p className="crm-contract-document-list-item" key={index}><span aria-hidden="true">•</span>{inlineMarkdown(value.replace(/^[-*]\s+/, ''))}</p>
+    return <p key={index}>{inlineMarkdown(value)}</p>
   })}</div>
 }
 

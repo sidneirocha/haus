@@ -250,12 +250,16 @@
 .crm-public-contract .crm-contract-public-copy { max-height: none; }
 .crm-contract-document { color: #31443a; font-size: 13px; line-height: 1.65; }
 .crm-contract-document p { margin: 0; color: #43574d; }
+.crm-contract-document strong { color: #1b3026; font-weight: 750; }
+.crm-contract-document code { padding: 1px 4px; border-radius: 4px; background: #edf4ef; color: #126c40; font-size: .92em; }
 .crm-contract-document-kicker { color: #126c40 !important; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .crm-contract-document-party { padding: 2px 0; }
 .crm-contract-document-party strong { color: #1b3026; }
 .crm-contract-document-heading { margin: 22px 0 6px; color: #173b2b; font-size: 14px; line-height: 1.35; }
 .crm-contract-document-heading span { color: #39a96a; margin-right: 5px; }
 .crm-contract-document-break { height: 10px; }
+.crm-contract-document-list-item { display: flex; gap: 8px; padding-left: 8px; }
+.crm-contract-document-list-item > span { color: #39a96a; font-weight: 800; }
 .crm-public-document-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e9e5; }
 .crm-public-contract .crm-sign { display: grid; gap: 17px; padding: 24px; border-radius: 12px; }
 .crm-sign-heading { display: flex; align-items: flex-start; gap: 11px; }
