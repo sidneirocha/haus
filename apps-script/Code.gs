@@ -233,7 +233,13 @@ function rows_(name) {
   const sheet = sheet_(name); const values = sheet.getDataRange().getValues(); if (values.length < 2) return [];
   const headers = values.shift(); return values.filter(function(row) { return row.some(Boolean); }).map(function(row) { const item = {}; headers.forEach(function(header, index) { item[header] = row[index]; if (name === 'Projetos' && header === 'solutions' && typeof item[header] === 'string') { try { item[header] = item[header] ? JSON.parse(item[header]) : []; } catch (error) { item[header] = []; } } if (name === 'Lancamentos_Financeiros' && header === 'recurrenceStatuses' && typeof item[header] === 'string') { try { item[header] = item[header] ? JSON.parse(item[header]) : {}; } catch (error) { item[header] = {}; } } }); return item; });
 }
-function append_(name, item) { const headers = SHEETS[name]; sheet_(name).appendRow(headers.map(function(header) { return item[header] === undefined ? '' : item[header]; })); return item; }
+function append_(name, item) {
+  const sheet = sheet_(name);
+  const lastColumn = Math.max(sheet.getLastColumn(), (SHEETS[name] || []).length);
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function(header) { return String(header || '').trim(); });
+  sheet.appendRow(headers.map(function(header) { return item[header] === undefined ? '' : item[header]; }));
+  return item;
+}
 function createRow_(name, body) {
   const stamp = now_(); const item = Object.assign({}, body, { id: id_(name.toLowerCase()), createdAt: stamp, updatedAt: stamp });
   delete item.action; delete item.adminKey; delete item.sessionToken; return append_(name, item);
@@ -296,6 +302,7 @@ function publicQuote_(token) {
 function contracts_() {
   const events = rows_('Eventos_Contrato');
   return rows_('Contratos').map(function(contract) {
+    contract.status = String(contract.status || '').trim() || 'Rascunho';
     var client = rows_('Clientes').filter(function(item) { return item.id === contract.clientId; })[0];
     contract.clientEmail = contract.clientEmail || (client && client.email) || '';
     contract.clientPhone = contract.clientPhone || (client && client.phone) || '';
