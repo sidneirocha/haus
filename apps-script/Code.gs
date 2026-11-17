@@ -33,8 +33,9 @@ const SHEET_ALIASES = {
 function doGet(e) {
   try {
     const action = (e.parameter.action || '').trim();
-    if (action === 'quote') return json_(publicQuote_(e.parameter.id));
-    if (action === 'contract') return json_(publicContract_(e.parameter.id));
+    const publicId = e.parameter.id || e.parameter.token || '';
+    if (action === 'quote') return json_(publicQuote_(publicId));
+    if (action === 'contract') return json_(publicContract_(publicId));
     const body = getBody_(e, action);
     if (action === 'auth.login' || action === 'auth.session' || isPublicAction_(action)) return json_(dispatchAction_(action, body));
     requireAdmin_(e, body);
@@ -318,8 +319,11 @@ function aiDrafts_() {
   });
 }
 function publicContract_(token) {
+  token = String(token || '').trim();
   if (!token) throw new Error('Token ausente.');
-  const contract = contracts_().filter(function(item) { return item.token === token && ['Enviado', 'Visualizado', 'Assinado'].indexOf(item.status) >= 0; })[0];
+  // "Publicado" mantém compatibilidade com contratos criados pela versão anterior.
+  const publicStatuses = ['Enviado', 'Publicado', 'Visualizado', 'Assinado'];
+  const contract = contracts_().filter(function(item) { return String(item.token || '').trim() === token && publicStatuses.indexOf(item.status) >= 0; })[0];
   if (!contract) throw new Error('Contrato não encontrado ou ainda não publicado.');
   if (contract.expiresAt && new Date(contract.expiresAt + 'T23:59:59') < new Date() && contract.status !== 'Assinado') throw new Error('Este contrato expirou.');
   return contract;
@@ -387,13 +391,13 @@ function publishContract_(body) {
 }
 function viewContract_(body) {
   const contract = publicContract_(body.token);
-  if (contract.status === 'Enviado') { updateRow_('Contratos', { id: contract.id, status: 'Visualizado' }); addContractEvent_(contract.id, 'Visualizado', 'Cliente', 'Abertura do link público.'); }
+  if (['Enviado', 'Publicado'].indexOf(contract.status) >= 0) { updateRow_('Contratos', { id: contract.id, status: 'Visualizado' }); addContractEvent_(contract.id, 'Visualizado', 'Cliente', 'Abertura do link público.'); }
   return publicContract_(body.token);
 }
 function signContract_(body) {
   if (!body.consent || String(body.signedName || '').trim().length < 3 || String(body.signedEmail || '').indexOf('@') < 1 || String(body.signerDocument || '').replace(/\D/g, '').length < 11) throw new Error('Informe nome completo, e-mail, CPF/CNPJ e aceite os termos.');
   const contract = publicContract_(body.token);
-  if (['Enviado', 'Visualizado'].indexOf(contract.status) < 0) throw new Error('Este contrato não está disponível para assinatura.');
+  if (['Enviado', 'Publicado', 'Visualizado'].indexOf(contract.status) < 0) throw new Error('Este contrato não está disponível para assinatura.');
   const signedAt = now_();
   var client = rows_('Clientes').filter(function(item) { return item.id === contract.clientId; })[0];
   var signedName = String(body.signedName).trim();

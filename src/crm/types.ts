@@ -4,7 +4,7 @@ export type InstallmentStatus = 'Pendente' | 'Pago' | 'Atrasado'
 export type FinancialType = 'Entrada' | 'Saída' | 'Custo'
 export type FinancialStatus = 'Pago' | 'Recebido' | 'Pendente'
 export type FinancialRecurrence = 'Nenhuma' | 'Mensal' | 'Trimestral' | 'Anual'
-export type ContractStatus = 'Rascunho' | 'Enviado' | 'Visualizado' | 'Assinado' | 'Expirado' | 'Cancelado'
+export type ContractStatus = 'Rascunho' | 'Enviado' | 'Publicado' | 'Visualizado' | 'Assinado' | 'Expirado' | 'Cancelado'
 export const SERVICE_CATEGORIES = ['Web', 'Produto', 'Suporte', 'Infra', 'Estratégia', 'Branding'] as const
 
 export type ProjectSolution = {
