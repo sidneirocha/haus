@@ -51,7 +51,7 @@ import { NewProjectFromQuote } from "./NewProjectFromQuote";
 import { NewQuoteWithClient } from "./NewQuoteWithClient";
 import { InlineServiceCreator } from "./InlineServiceCreator";
 import { QuoteDetailEditor } from "./QuoteDetailEditor";
-import { Contracts, PublicContract } from "./Contracts";
+import { Contracts, PublicContract, PublicSignedContractDemo } from "./Contracts";
 import { SERVICE_CATEGORIES } from "./types";
 import { formatBRL, parseBRL } from "./money";
 import { clearCrmSession, registerCrmPasskey } from "./auth";
@@ -3902,6 +3902,7 @@ export function CrmRoute() {
   const pathname = window.location.pathname;
   const quoteMatch = pathname.match(/\/orcamento\/([^/]+)/);
   const contractMatch = pathname.match(/\/contrato\/([^/]+)/);
+  if (pathname === '/contrato-teste-assinado') return <ToastProvider><PublicSignedContractDemo /></ToastProvider>;
   if (contractMatch) return <ToastProvider><PublicContract token={contractMatch[1]} /></ToastProvider>;
   if (quoteMatch) return <ToastProvider><PublicQuote token={quoteMatch[1]} /></ToastProvider>;
   return (
