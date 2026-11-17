@@ -1,5 +1,5 @@
 import { demoData } from './demo-data'
-import type { Activity, AiDraft, Client, Contract, ContractModel, DashboardData, FinancialEntry, Installment, Project, Quote, Service, Story, Subtask, Sprint } from './types'
+import type { Activity, AiDraft, Client, CompanySettings, Contract, ContractModel, DashboardData, FinancialEntry, Installment, Project, Quote, Service, Story, Subtask, Sprint } from './types'
 import { announce } from './Toast'
 import { clearCrmSession, getCrmSessionToken } from './auth'
 import { recurrenceCutoffBefore } from './finance-utils'
@@ -77,7 +77,12 @@ export const crmRepository = {
       subtasks: response.subtasks ?? [],
       activities: response.activities ?? [],
       sprints: response.sprints ?? [],
+      companySettings: response.companySettings ?? { spreadsheetUrl: '', tradeName: 'Haus', legalName: '', cnpj: '', representative: '', address: '' },
     }
+  },
+  async updateCompanySettings(input: CompanySettings) {
+    if (!endpoint) { demoState.companySettings = input; persistDemoState(); return input }
+    return request<CompanySettings>('settings.update', { method: 'POST', body: JSON.stringify({ action: 'settings.update', ...input }) })
   },
   async createClient(input: Omit<Client, 'id' | 'projects' | 'quotes'>) {
     if (!endpoint) { const client = { ...input, id: `cli-${Date.now()}`, projects: 0, quotes: 0 }; demoState.clients.unshift(client); persistDemoState(); announce('Cliente criado.'); return client }

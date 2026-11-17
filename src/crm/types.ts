@@ -238,4 +238,14 @@ export type DashboardData = {
   subtasks?: Subtask[]
   activities?: Activity[]
   sprints?: Sprint[]
+  companySettings?: CompanySettings
+}
+
+export type CompanySettings = {
+  spreadsheetUrl: string
+  tradeName: string
+  legalName: string
+  cnpj: string
+  representative: string
+  address: string
 }

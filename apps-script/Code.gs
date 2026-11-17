@@ -68,6 +68,7 @@ function isPublicAction_(action) {
 
 function dispatchAction_(action, body) {
   if (action === 'dashboard' || !action) return dashboard_();
+  if (action === 'settings.update') return updateSettings_(body);
   if (action === 'clients') return rows_('Clientes');
   if (action === 'projects') return rows_('Projetos');
   if (action === 'services') return rows_('Servicos');
@@ -238,8 +239,10 @@ function createRow_(name, body) {
 }
 function dashboard_() {
   syncExpiredQuotes_();
-  return { clients: rows_('Clientes'), projects: rows_('Projetos'), services: rows_('Servicos'), quotes: quotes_(), finances: rows_('Lancamentos_Financeiros'), contractModels: rows_('Modelos_Contrato'), contracts: contracts_(), aiDrafts: aiDrafts_(), stories: rows_('Historias'), subtasks: rows_('Subtarefas'), activities: rows_('Atividades'), sprints: rows_('Sprints') };
+  return { clients: rows_('Clientes'), projects: rows_('Projetos'), services: rows_('Servicos'), quotes: quotes_(), finances: rows_('Lancamentos_Financeiros'), contractModels: rows_('Modelos_Contrato'), contracts: contracts_(), aiDrafts: aiDrafts_(), stories: rows_('Historias'), subtasks: rows_('Subtarefas'), activities: rows_('Atividades'), sprints: rows_('Sprints'), companySettings: settings_() };
 }
+function settings_() { var result = { spreadsheetUrl: '', tradeName: 'Haus', legalName: '', cnpj: '', representative: '', address: '' }; rows_('Configuracoes').forEach(function(item) { if (Object.prototype.hasOwnProperty.call(result, item.key)) result[item.key] = String(item.value || ''); }); return result; }
+function updateSettings_(body) { var allowed = ['spreadsheetUrl', 'tradeName', 'legalName', 'cnpj', 'representative', 'address']; var sheet = sheet_('Configuracoes'); var values = sheet.getDataRange().getValues(); var headers = values[0]; var keyColumn = headers.indexOf('key'); var valueColumn = headers.indexOf('value'); allowed.forEach(function(key) { var value = String(body[key] || '').trim(); var rowIndex = -1; for (var i = 1; i < values.length; i++) if (String(values[i][keyColumn] || '') === key) { rowIndex = i; break; } if (rowIndex >= 0) sheet.getRange(rowIndex + 1, valueColumn + 1).setValue(value); else sheet.appendRow([key, value]); }); return settings_(); }
 function dateOnlyValue_(value) {
   if (!value) return null;
   if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {

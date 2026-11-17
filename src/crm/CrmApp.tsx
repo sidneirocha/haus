@@ -61,6 +61,7 @@ import { CrmAuthGate } from "./AuthGate";
 import { PublicLoading, PublicNotFound } from "./PublicNotFound";
 import type {
   Client,
+  CompanySettings,
   DashboardData,
   FinancialEntry,
   FinancialRecurrence,
@@ -3731,6 +3732,11 @@ export function CrmApp() {
     localStorage.setItem("haus-project-stages", JSON.stringify(next));
     announce("Etapas dos projetos atualizadas.");
   };
+  const saveCompanySettings = async (next: CompanySettings) => {
+    await crmRepository.updateCompanySettings(next);
+    await reload();
+    announce("Dados da empresa atualizados.");
+  };
   useEffect(() => {
     reload();
   }, []);
@@ -3858,7 +3864,9 @@ export function CrmApp() {
             <SettingsPanel
               close={() => setSettingsOpen(false)}
               stages={stages}
+              companySettings={data.companySettings ?? { spreadsheetUrl: "", tradeName: "Haus", legalName: "", cnpj: "", representative: "", address: "" }}
               onSaveStages={saveStages}
+              onSaveCompanySettings={saveCompanySettings}
             />
           )}
           {modal === "client" && (
