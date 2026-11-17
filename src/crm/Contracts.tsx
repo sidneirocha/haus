@@ -184,17 +184,9 @@ function downloadContractCopy(contract: Contract) {
   URL.revokeObjectURL(href)
 }
 
-const demoSignedContract: Contract = {
-  id: 'demo-contract-signed', token: 'demo-assinado', clientId: 'demo-client', clientName: 'Janaina Oliveira', company: 'Vivacemare Investimentos', legalName: 'VIVACE MARE AI LTDA', cnpj: '60.302.471/0001-86', clientAddress: 'Avenida Almirante Cochrane, 47 - 4º Andar, Santos - SP', projectId: 'demo-project', projectName: 'Projeto Vivacemare', modelId: 'demo-model', modelName: 'Contrato de Prestação de Serviços Web', title: 'Projeto Vivacemare',
-  content: '# CONTRATO DE PRESTAÇÃO DE SERVIÇOS DIGITAIS\n\n**CONTRATADA:** SIDNEI ROCHA DA SILVA BARROS LTDA, CNPJ 35.721.147/0001-55.\n\n**CONTRATANTE:** VIVACE MARE AI LTDA, CNPJ 60.302.471/0001-86.\n\n## 1. OBJETO\n\nA CONTRATADA executará os serviços digitais descritos no orçamento aprovado.\n\n## 2. VALORES E PAGAMENTO\n\n**Valor total contratado: R$ 2.180,00**\n\n---\n\n**CONTRATANTE**\n\nVIVACE MARE AI LTDA\n\nCNPJ: 60.302.471/0001-86\n\n**CONTRATADA**\n\nSIDNEI ROCHA DA SILVA BARROS LTDA\n\nCNPJ: 35.721.147/0001-55', status: 'Assinado', createdAt: '2026-11-17T14:00:00.000Z', updatedAt: '2026-11-17T14:18:00.000Z', expiresAt: '2026-12-17', signedName: 'Janaina Oliveira', signedEmail: 'janaina@vivacemare.com.br', signerDocument: '60.302.471/0001-86', signedAt: '2026-11-17T14:18:00.000Z', clientEmail: 'janaina@vivacemare.com.br', clientPhone: '(13) 99738-3637', signatureHash: 'demo-8f4d2a9c7b1e6f03a4c6d8e2b7f9a1c5',
-  events: [{ id: 'demo-event-signed', contractId: 'demo-contract-signed', type: 'Assinado', occurredAt: '2026-11-17T14:18:00.000Z', actor: 'Janaina Oliveira', metadata: 'Demonstração sem efeito real.' }, { id: 'demo-event-published', contractId: 'demo-contract-signed', type: 'Publicado', occurredAt: '2026-11-17T14:02:00.000Z', actor: 'Haus', metadata: 'Contrato de demonstração.' }],
-}
-
-export function PublicSignedContractDemo() { return <PublicContract token={demoSignedContract.token} demoContract={demoSignedContract} /> }
-
-export function PublicContract({ token, demoContract }: { token: string; demoContract?: Contract }) {
-  const [contract, setContract] = useState<Contract | null>(demoContract ?? null)
-  const [loading, setLoading] = useState(!demoContract)
+export function PublicContract({ token }: { token: string }) {
+  const [contract, setContract] = useState<Contract | null>(null)
+  const [loading, setLoading] = useState(true)
   const [done, setDone] = useState(false)
   const [form, setForm] = useState({ signedName: '', signedEmail: '', signerDocument: '', consent: false })
   const [error, setError] = useState('')
@@ -209,7 +201,7 @@ export function PublicContract({ token, demoContract }: { token: string; demoCon
     }).catch(() => setContract(null)).finally(() => setLoading(false))
   }
 
-  useEffect(() => { if (!demoContract) loadContract() }, [token, demoContract])
+  useEffect(() => { loadContract() }, [token])
 
   if (loading) return <PublicLoading label="Carregando contrato…" />
   if (!contract) return <PublicNotFound kind="contrato" onRetry={loadContract} />
@@ -235,7 +227,6 @@ export function PublicContract({ token, demoContract }: { token: string; demoCon
   return <div className="crm-public-page"><div className="crm-public-shell crm-public-contract">
     <div className="crm-public-header"><img className="crm-public-header-logo" src={appPath('/brand/logo-dark.svg')} alt="Haus" /><p className="crm-overline">Contrato de prestação de serviços</p><h1>{contract.title}</h1><p>{contract.company} - Válido até {fullDate(contract.expiresAt)}.</p></div>
     <div className="crm-public-body">
-      {demoContract && <div className="crm-public-demo-banner"><strong>Demonstração</strong><span>Este contrato já está assinado apenas para simular o resultado. Nenhum aceite real foi realizado.</span></div>}
       <div className="crm-public-section crm-contract-public-copy"><ContractDocument content={contract.content} /><div className="crm-public-document-actions"><button className="crm-button secondary" type="button" onClick={() => downloadContractCopy(contract)}><Download size={15} />Baixar cópia</button><button className="crm-button secondary" type="button" onClick={() => window.print()}><Printer size={15} />Imprimir / salvar PDF</button></div></div>
       {signed ? <div className="crm-success crm-sign-success"><Check size={20} /><strong>Contrato assinado</strong><span>O aceite foi registrado com data, hora, identidade declarada e versão do documento.</span><div className="crm-sign-audit"><div className="crm-sign-audit-item"><small>Cliente</small><strong>{contract.company} · {contract.clientName}</strong></div><div className="crm-sign-audit-item"><small>E-mail do cliente</small><strong>{contract.clientEmail || contract.signedEmail || '—'}</strong></div><div className="crm-sign-audit-item"><small>Telefone do cliente</small><strong>{contract.clientPhone || '—'}</strong></div><div className="crm-sign-audit-item"><small>Assinante</small><strong>{contract.signedName || '—'}</strong></div><div className="crm-sign-audit-item"><small>Data e hora</small><strong>{contract.signedAt ? new Date(contract.signedAt).toLocaleString('pt-BR') : '—'}</strong></div><div className="crm-sign-audit-item"><small>Documento</small><strong>{contract.signerDocument || '—'}</strong></div><div className="crm-sign-audit-item crm-sign-audit-hash"><small>Hash de auditoria</small><code>{contract.signatureHash || '—'}</code>{contract.signatureHash && <button className="crm-sign-audit-copy" type="button" onClick={() => { void navigator.clipboard?.writeText(contract.signatureHash || ''); notify('Hash copiado.') }}><Copy size={13} />Copiar hash</button>}</div></div><button className="crm-button primary" type="button" onClick={() => downloadContractCopy(contract)}><Download size={15} />Baixar cópia assinada</button></div> : <form className="crm-public-section crm-sign" onSubmit={sign}>
         <div className="crm-sign-heading"><span className="crm-sign-icon"><PenLine size={17} /></span><div><h2>Assinar contrato</h2><p>Leia o documento e confirme seus dados para registrar o aceite eletrônico.</p></div></div>
