@@ -17,6 +17,15 @@ const date = (value?: string) => {
   if (Number.isNaN(parsed.getTime())) return '—'
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).format(parsed).replace('.', '')
 }
+const fullDate = (value?: string) => {
+  if (!value) return '—'
+  const raw = String(value).trim()
+  const brazilian = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  const normalized = brazilian ? `${brazilian[3]}-${brazilian[2]}-${brazilian[1]}` : raw.slice(0, 10)
+  const parsed = new Date(`${normalized}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return '—'
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }).format(parsed)
+}
 const appPath = (value: string) => `${import.meta.env.BASE_URL}${value.replace(/^\//, '')}`
 const totalQuote = (quote: Quote) => quote.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
 const statusTone = (status: Contract['status']) => status === 'Assinado' ? 'green' : status === 'Enviado' || status === 'Publicado' || status === 'Visualizado' ? 'blue' : status === 'Cancelado' || status === 'Expirado' ? 'red' : 'neutral'
@@ -163,7 +172,7 @@ function ContractDocument({ content }: { content: string }) {
 
 function downloadContractCopy(contract: Contract) {
   const signature = contract.signedAt ? `\n\nACEITE ELETRÔNICO\nCliente: ${contract.company || '—'} · ${contract.clientName || '—'}\nE-mail do cliente: ${contract.clientEmail || '—'}\nTelefone do cliente: ${contract.clientPhone || '—'}\nAssinante: ${contract.signedName ?? '—'}\nE-mail do assinante: ${contract.signedEmail ?? '—'}\nDocumento: ${contract.signerDocument ?? '—'}\nData e hora: ${new Date(contract.signedAt).toLocaleString('pt-BR')}\nHash de auditoria: ${contract.signatureHash ?? '—'}` : ''
-  const content = `${contract.title}\n${contract.company} · válido até ${date(contract.expiresAt)}\n\n${contract.content}${signature}\n`
+  const content = `${contract.title}\n${contract.company} - Válido até ${fullDate(contract.expiresAt)}.\n\n${contract.content}${signature}\n`
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
   const href = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
@@ -216,7 +225,7 @@ export function PublicContract({ token }: { token: string }) {
   }
 
   return <div className="crm-public-page"><div className="crm-public-shell crm-public-contract">
-    <div className="crm-public-header"><img className="crm-public-header-logo" src={appPath('/brand/logo-dark.svg')} alt="Haus" /><p className="crm-overline">Contrato de prestação de serviços</p><h1>{contract.title}</h1><p>{contract.company} · válido até {date(contract.expiresAt)}</p></div>
+    <div className="crm-public-header"><img className="crm-public-header-logo" src={appPath('/brand/logo-dark.svg')} alt="Haus" /><p className="crm-overline">Contrato de prestação de serviços</p><h1>{contract.title}</h1><p>{contract.company} - Válido até {fullDate(contract.expiresAt)}.</p></div>
     <div className="crm-public-body">
       <div className="crm-public-section crm-contract-public-copy"><ContractDocument content={contract.content} /><div className="crm-public-document-actions"><button className="crm-button secondary" type="button" onClick={() => downloadContractCopy(contract)}><Download size={15} />Baixar cópia</button><button className="crm-button secondary" type="button" onClick={() => window.print()}><Printer size={15} />Imprimir / salvar PDF</button></div></div>
       {signed ? <div className="crm-success crm-sign-success"><Check size={20} /><strong>Contrato assinado</strong><span>O aceite foi registrado com data, hora, identidade declarada e versão do documento.</span><div className="crm-sign-audit"><div className="crm-sign-audit-item"><small>Cliente</small><strong>{contract.company} · {contract.clientName}</strong></div><div className="crm-sign-audit-item"><small>E-mail do cliente</small><strong>{contract.clientEmail || contract.signedEmail || '—'}</strong></div><div className="crm-sign-audit-item"><small>Telefone do cliente</small><strong>{contract.clientPhone || '—'}</strong></div><div className="crm-sign-audit-item"><small>Assinante</small><strong>{contract.signedName || '—'}</strong></div><div className="crm-sign-audit-item"><small>Data e hora</small><strong>{contract.signedAt ? new Date(contract.signedAt).toLocaleString('pt-BR') : '—'}</strong></div><div className="crm-sign-audit-item"><small>Documento</small><strong>{contract.signerDocument || '—'}</strong></div><div className="crm-sign-audit-item crm-sign-audit-hash"><small>Hash de auditoria</small><code>{contract.signatureHash || '—'}</code>{contract.signatureHash && <button className="crm-sign-audit-copy" type="button" onClick={() => { void navigator.clipboard?.writeText(contract.signatureHash || ''); notify('Hash copiado.') }}><Copy size={13} />Copiar hash</button>}</div></div><button className="crm-button primary" type="button" onClick={() => downloadContractCopy(contract)}><Download size={15} />Baixar cópia assinada</button></div> : <form className="crm-public-section crm-sign" onSubmit={sign}>
