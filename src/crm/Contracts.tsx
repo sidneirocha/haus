@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Copy, CopyPlus, Download, ExternalLink, FileSignature, History, PenLine, Plus, Printer, Send, ShieldCheck, Sparkles, Trash2, Upload, X } from 'lucide-react'
+import { jsPDF } from 'jspdf'
 import { crmRepository } from './repository'
 import { PublicLoading, PublicNotFound } from './PublicNotFound'
 import type { Client, Contract, ContractModel, DashboardData, Project, Quote, CompanySettings } from './types'
@@ -170,18 +171,82 @@ function ContractDocument({ content }: { content: string }) {
   })}</div>
 }
 
+function contractPdfText(value: string) {
+  return value
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^\*\*(CONTRATANTE|CONTRATADA):\*\*/gm, '$1:')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+}
+
 function downloadContractCopy(contract: Contract) {
-  const signature = contract.signedAt ? `\n\nACEITE ELETRÔNICO\nCliente: ${contract.company || '—'} · ${contract.clientName || '—'}\nE-mail do cliente: ${contract.clientEmail || '—'}\nTelefone do cliente: ${contract.clientPhone || '—'}\nAssinante: ${contract.signedName ?? '—'}\nE-mail do assinante: ${contract.signedEmail ?? '—'}\nDocumento: ${contract.signerDocument ?? '—'}\nData e hora: ${new Date(contract.signedAt).toLocaleString('pt-BR')}\nHash de auditoria: ${contract.signatureHash ?? '—'}` : ''
-  const content = `${contract.title}\n${contract.company} - Válido até ${fullDate(contract.expiresAt)}.\n\n${contract.content}${signature}\n`
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-  const href = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = href
-  anchor.download = `${contract.title.toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'contrato'}-copia.txt`
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(href)
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4' })
+  const margin = 18
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const pageHeight = pdf.internal.pageSize.getHeight()
+  const contentWidth = pageWidth - margin * 2
+  let cursorY = 20
+
+  const ensureSpace = (height: number) => {
+    if (cursorY + height <= pageHeight - 16) return
+    pdf.addPage()
+    cursorY = 20
+  }
+  const addText = (value: string, options: { size?: number; bold?: boolean; color?: [number, number, number]; gap?: number } = {}) => {
+    const size = options.size ?? 10.5
+    const gap = options.gap ?? 5.2
+    pdf.setFont('helvetica', options.bold ? 'bold' : 'normal')
+    pdf.setFontSize(size)
+    pdf.setTextColor(...(options.color ?? [43, 58, 52]))
+    const lines = pdf.splitTextToSize(value, contentWidth) as string[]
+    ensureSpace(lines.length * gap + 1)
+    pdf.text(lines, margin, cursorY)
+    cursorY += lines.length * gap
+  }
+  const addRule = () => {
+    ensureSpace(7)
+    pdf.setDrawColor(210, 222, 216)
+    pdf.line(margin, cursorY, pageWidth - margin, cursorY)
+    cursorY += 7
+  }
+
+  pdf.setFillColor(12, 67, 48)
+  pdf.rect(0, 0, pageWidth, 13, 'F')
+  pdf.setTextColor(255, 255, 255)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(9)
+  pdf.text('HAUS · CONTRATO', margin, 8.5)
+  cursorY = 24
+  addText(contract.title, { size: 18, bold: true, color: [12, 67, 48], gap: 7 })
+  addText(`${contract.company || '—'} · Válido até ${fullDate(contract.expiresAt)}.`, { size: 10, color: [82, 98, 91], gap: 5 })
+  addRule()
+
+  for (const rawLine of contractPdfText(contract.content).split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (!line) {
+      cursorY += 3
+      continue
+    }
+    const heading = line.match(/^(\d+\.\s+)?(.+)$/)
+    const isHeading = /^\d+\.\s+/.test(line) || /^(CONTRATO DE PRESTAÇÃO|CONTRATANTE|CONTRATADA|OBJETO|VALORES E PAGAMENTO|PRAZO E ENTREGA|ACEITE ELETRÔNICO)/i.test(line)
+    addText(line, isHeading ? { size: 11.5, bold: true, color: [35, 133, 86], gap: 6.2 } : { gap: 5.2 })
+  }
+
+  if (contract.signedAt) {
+    addRule()
+    addText('ACEITE ELETRÔNICO', { size: 13, bold: true, color: [12, 67, 48], gap: 6.5 })
+    addText(`Cliente: ${contract.company || '—'} · ${contract.clientName || '—'}`)
+    addText(`E-mail do cliente: ${contract.clientEmail || '—'}`)
+    addText(`Telefone do cliente: ${contract.clientPhone || '—'}`)
+    addText(`Assinante: ${contract.signedName || '—'}`)
+    addText(`E-mail do assinante: ${contract.signedEmail || '—'}`)
+    addText(`Documento: ${contract.signerDocument || '—'}`)
+    addText(`Data e hora: ${new Date(contract.signedAt).toLocaleString('pt-BR')}`)
+    addText(`Hash de auditoria: ${contract.signatureHash || '—'}`, { size: 8.5 })
+  }
+
+  const filename = `${contract.title.toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'contrato'}-${contract.signedAt ? 'assinado' : 'copia'}.pdf`
+  pdf.save(filename)
 }
 
 export function PublicContract({ token }: { token: string }) {
@@ -227,8 +292,8 @@ export function PublicContract({ token }: { token: string }) {
   return <div className="crm-public-page"><div className="crm-public-shell crm-public-contract">
     <div className="crm-public-header"><img className="crm-public-header-logo" src={appPath('/brand/logo-dark.svg')} alt="Haus" /><p className="crm-overline">Contrato de prestação de serviços</p><h1>{contract.title}</h1><p>{contract.company} - Válido até {fullDate(contract.expiresAt)}.</p></div>
     <div className="crm-public-body">
-      <div className="crm-public-section crm-contract-public-copy"><ContractDocument content={contract.content} /><div className="crm-public-document-actions"><button className="crm-button secondary" type="button" onClick={() => downloadContractCopy(contract)}><Download size={15} />Baixar cópia</button><button className="crm-button secondary" type="button" onClick={() => window.print()}><Printer size={15} />Imprimir / salvar PDF</button></div></div>
-      {signed ? <div className="crm-success crm-sign-success"><Check size={20} /><strong>Contrato assinado</strong><span>O aceite foi registrado com data, hora, identidade declarada e versão do documento.</span><div className="crm-sign-audit"><div className="crm-sign-audit-item"><small>Cliente</small><strong>{contract.company} · {contract.clientName}</strong></div><div className="crm-sign-audit-item"><small>E-mail do cliente</small><strong>{contract.clientEmail || contract.signedEmail || '—'}</strong></div><div className="crm-sign-audit-item"><small>Telefone do cliente</small><strong>{contract.clientPhone || '—'}</strong></div><div className="crm-sign-audit-item"><small>Assinante</small><strong>{contract.signedName || '—'}</strong></div><div className="crm-sign-audit-item"><small>Data e hora</small><strong>{contract.signedAt ? new Date(contract.signedAt).toLocaleString('pt-BR') : '—'}</strong></div><div className="crm-sign-audit-item"><small>Documento</small><strong>{contract.signerDocument || '—'}</strong></div><div className="crm-sign-audit-item crm-sign-audit-hash"><small>Hash de auditoria</small><code>{contract.signatureHash || '—'}</code>{contract.signatureHash && <button className="crm-sign-audit-copy" type="button" onClick={() => { void navigator.clipboard?.writeText(contract.signatureHash || ''); notify('Hash copiado.') }}><Copy size={13} />Copiar hash</button>}</div></div><button className="crm-button primary" type="button" onClick={() => downloadContractCopy(contract)}><Download size={15} />Baixar cópia assinada</button></div> : <form className="crm-public-section crm-sign" onSubmit={sign}>
+      <div className="crm-public-section crm-contract-public-copy"><ContractDocument content={contract.content} /><div className="crm-public-document-actions"><button className="crm-button secondary" type="button" onClick={() => downloadContractCopy(contract)}><Download size={15} />Baixar PDF</button><button className="crm-button secondary" type="button" onClick={() => window.print()}><Printer size={15} />Imprimir / salvar PDF</button></div></div>
+      {signed ? <div className="crm-success crm-sign-success"><Check size={20} /><strong>Contrato assinado</strong><span>O aceite foi registrado com data, hora, identidade declarada e versão do documento.</span><div className="crm-sign-audit"><div className="crm-sign-audit-item"><small>Cliente</small><strong>{contract.company} · {contract.clientName}</strong></div><div className="crm-sign-audit-item"><small>E-mail do cliente</small><strong>{contract.clientEmail || contract.signedEmail || '—'}</strong></div><div className="crm-sign-audit-item"><small>Telefone do cliente</small><strong>{contract.clientPhone || '—'}</strong></div><div className="crm-sign-audit-item"><small>Assinante</small><strong>{contract.signedName || '—'}</strong></div><div className="crm-sign-audit-item"><small>Data e hora</small><strong>{contract.signedAt ? new Date(contract.signedAt).toLocaleString('pt-BR') : '—'}</strong></div><div className="crm-sign-audit-item"><small>Documento</small><strong>{contract.signerDocument || '—'}</strong></div><div className="crm-sign-audit-item crm-sign-audit-hash"><small>Hash de auditoria</small><code>{contract.signatureHash || '—'}</code>{contract.signatureHash && <button className="crm-sign-audit-copy" type="button" onClick={() => { void navigator.clipboard?.writeText(contract.signatureHash || ''); notify('Hash copiado.') }}><Copy size={13} />Copiar hash</button>}</div></div><button className="crm-button primary" type="button" onClick={() => downloadContractCopy(contract)}><Download size={15} />Baixar PDF assinado</button></div> : <form className="crm-public-section crm-sign" onSubmit={sign}>
         <div className="crm-sign-heading"><span className="crm-sign-icon"><PenLine size={17} /></span><div><h2>Assinar contrato</h2><p>Leia o documento e confirme seus dados para registrar o aceite eletrônico.</p></div></div>
         <div className="crm-sign-fields"><label className="crm-sign-field"><span>Nome completo</span><input required minLength={3} autoComplete="name" placeholder="Digite seu nome completo" value={form.signedName} onChange={event => setForm({ ...form, signedName: event.target.value })} /></label><label className="crm-sign-field"><span>E-mail</span><input required type="email" autoComplete="email" placeholder="voce@empresa.com" value={form.signedEmail} onChange={event => setForm({ ...form, signedEmail: event.target.value })} /></label><label className="crm-sign-field crm-sign-field-full"><span>CPF ou CNPJ</span><input required autoComplete="off" placeholder="Somente para identificação" value={form.signerDocument} onChange={event => setForm({ ...form, signerDocument: event.target.value })} /></label></div>
         <label className="crm-sign-consent"><input type="checkbox" checked={form.consent} onChange={event => setForm({ ...form, consent: event.target.checked })} /><span className="crm-sign-checkmark"><Check size={14} /></span><span>Declaro que li e aceito este contrato.</span></label>

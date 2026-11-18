@@ -12,6 +12,7 @@
     "@simplewebauthn/browser": "^14.0.0",
     "@simplewebauthn/server": "^14.1.0",
     "@vitejs/plugin-react": "latest",
+    "jspdf": "^4.2.1",
     "lucide-react": "^1.70.0",
     "react": "latest",
     "react-dom": "latest",
