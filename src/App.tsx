@@ -35,10 +35,12 @@ const defaultCards: Card[] = [
   { id: '09', image: '/assets/cases/bfx-website/home-cover.png', title: 'BFX Empresarial', depth: -20, offset: 40, active: true },
   { id: '10', image: '/assets/card-10.png', title: 'BFX Empresarial — Identidade Visual', depth: 35, offset: -45, active: true },
   { id: '11', image: '/assets/cases/m4-logistica/home-cover.png', title: 'M4 Logística', depth: -5, offset: 70, active: true },
+  { id: '12', image: '/assets/cases/vivacemare/cover.png', title: 'Vivacemare Investimentos', depth: 25, offset: -30, active: true },
 ]
 
 const defaultSettings: Settings = { speed: 1.5, direction: 'left', cardWidth: 407, cardHeight: 243, gap: 0, perspective: 501, flow: true, wheel: true, dof: true, reducedMotion: false }
 const caseStudies: CaseStudy[] = [
+  { id: 'vivacemare', image: '/assets/cases/vivacemare/cover.png', images: ['/assets/cases/vivacemare/cover.png', '/assets/cases/vivacemare/01-home.png', '/assets/cases/vivacemare/02-positioning.png', '/assets/cases/vivacemare/03-solutions.png', '/assets/cases/vivacemare/04-identity.png', '/assets/cases/vivacemare/05-team.png', '/assets/cases/vivacemare/06-time.png', '/assets/cases/vivacemare/07-contact.png'], category: 'Website', title: 'Vivacemare Investimentos', description: 'Website institucional para uma assessoria de investimentos que transforma patrimônio em relações de longo prazo, com visão 360° para pessoas físicas, empresas e clientes Private.', service: 'Estratégia digital', year: '2026', status: 'Finalizado', browserType: 'Website', url: 'https://vivaceinvestimentos.com.br/' },
   { id: 'centro-oeste', image: '/assets/card-03.jpg', images: ['/assets/cases/centro-oeste/ui-00.png', '/assets/cases/centro-oeste/ui-01.png', '/assets/cases/centro-oeste/ui-02.png', '/assets/cases/centro-oeste/ui-03.png', '/assets/cases/centro-oeste/ui-04.png', '/assets/cases/centro-oeste/ui-05.png', '/assets/cases/centro-oeste/ui-06.png'], category: 'Website', title: 'Centro Oeste Laticínio', description: 'Fundada em 1993, em Campolândia, Goiás, a Centro Oeste Laticínios começou produzindo queijos de alta qualidade e expandiu sua operação com uma moderna fábrica em Piranhas.', browserType: 'Website', year: '2025', status: 'Finalizado', url: 'https://centrooestelaticinios.com.br/' },
   { id: 'mana-poke', image: '/assets/card-01.jpg', images: ['/assets/cases/mana-poke-updated/01.png', '/assets/cases/mana-poke-updated/02.png', '/assets/cases/mana-poke-updated/03.png', '/assets/cases/mana-poke-updated/04.png', '/assets/cases/mana-poke-updated/05.png', '/assets/cases/mana-poke-updated/06.png', '/assets/cases/mana-poke-updated/07.png', '/assets/cases/mana-poke-updated/08.png', '/assets/cases/mana-poke-updated/09.png', '/assets/cases/mana-poke-updated/10.png', '/assets/cases/mana-poke-updated/11.png'], category: 'Landing Page', title: 'Mana Poke', description: 'Em colaboração com a Barbas.digital, desenvolvemos um layout para a página dos franqueados da Mana Poke, com acesso simples a informações e recursos essenciais para suas operações.', service: 'UI / UX', year: '2023', url: 'https://www.figma.com/' },
   { id: 'dona', image: '/assets/card-02.png', images: ['/assets/cases/dona/01.png', '/assets/cases/dona/03.png'], category: 'Packshot 3D', title: 'Dona Cervejaria', description: 'Packshots 3D para os novos lançamentos da cervejaria, com atenção especial ao nível de detalhe necessário para representar cada material.', service: 'Modelo 3D', year: '2018', url: 'https://cervejariadona.com.br/' },
@@ -51,7 +53,7 @@ const caseStudies: CaseStudy[] = [
   { id: 'bfx-identidade', image: '/assets/card-10.png', images: ['/assets/cases/bfx-identidade/01.png', '/assets/cases/bfx-identidade/02.png', '/assets/cases/bfx-identidade/03.png', '/assets/cases/bfx-identidade/04.png', '/assets/cases/bfx-identidade/05.png', '/assets/cases/bfx-identidade/06.png', '/assets/cases/bfx-identidade/07.png'], category: 'Identidade Visual', title: 'BFX Empresarial — Identidade Visual', description: 'Sistema visual completo para a BFX Empresarial, com diretrizes de marca, animações, cores, fotografia, aplicações e assinatura de e-mail.', service: 'Direção de arte', year: '2026', url: 'https://bfxempresarial.com.br/style-guide' },
   { id: 'm4-logistica', image: '/assets/cases/m4-logistica/cover-black.png', images: ['/assets/cases/m4-logistica/cover-black.png', '/assets/cases/m4-logistica/02.png', '/assets/cases/m4-logistica/03.png', '/assets/cases/m4-logistica/04.png'], category: 'Identidade Visual', title: 'M4 Logística', description: 'Projeto de marca para a M4 Logística, com uma identidade forte e funcional aplicada à comunicação, aos uniformes e aos materiais da operação.', service: 'Branding', year: '2026', url: 'https://m4logistica.framer.website/' },
 ]
-const caseAnchorByCard: Record<string, string> = { '01': 'mana-poke', '02': 'dona', '03': 'centro-oeste', '04': 'os-turbo', '05': 'checkin', '06': 'guardasol', '07': 'santa-casa', '08': 'criosfera', '09': 'bfx-website', '10': 'bfx-identidade', '11': 'm4-logistica' }
+const caseAnchorByCard: Record<string, string> = { '01': 'mana-poke', '02': 'dona', '03': 'centro-oeste', '04': 'os-turbo', '05': 'checkin', '06': 'guardasol', '07': 'santa-casa', '08': 'criosfera', '09': 'bfx-website', '10': 'bfx-identidade', '11': 'm4-logistica', '12': 'vivacemare' }
 const load = <T,>(key: string, fallback: T): T => { try { return JSON.parse(localStorage.getItem(key) || '') as T } catch { return fallback } }
 const loadCards = () => {
   const saved = load<Card[]>('haus-cards', [])
@@ -482,12 +484,12 @@ function CaseGallery({ project }: { project: CaseStudy }) {
         {isDigital && <i className="case-device-camera" aria-hidden="true" />}
         {isDigital && <div className="case-browser-bar" aria-hidden="true"><span className="case-browser-dots"><i /><i /><i /></span><span>haus.art.br / {project.id}</span><b>{project.browserType || project.service || 'Digital experience'}</b></div>}
         <div
-          className={`case-gallery-stage ${isDigital ? 'is-digital' : ''}`}
+          className={`case-gallery-stage ${isDigital ? 'is-digital' : ''} ${project.id === 'vivacemare' ? 'is-vivacemare' : ''}`}
           onContextMenu={(event) => event.preventDefault()}
           onDragStart={(event) => event.preventDefault()}
         >
           <div className="case-gallery-track" style={{ transform: `translateY(-${active * 100}%)` }}>
-            {project.images.map((image, index) => <img className={project.id === 'm4-logistica' && index === 0 ? 'is-m4-cover' : undefined} key={image} src={assetPath(image)} alt={`${project.title} — imagem ${index + 1}`} draggable={false} />)}
+            {project.images.map((image, index) => <img className={project.id === 'm4-logistica' && index === 0 ? 'is-m4-cover' : project.id === 'vivacemare' && index === 0 ? 'is-vivacemare-cover' : undefined} key={image} src={assetPath(image)} alt={`${project.title} — imagem ${index + 1}`} draggable={false} />)}
           </div>
           {project.id === 'bfx-identidade' && active === 0 && <div className="case-brand-cover"><img src={assetPath('/assets/logo-bfx-dark.svg')} alt="BFX Empresarial" draggable={false} /></div>}
           <div className="case-gallery-controls">
