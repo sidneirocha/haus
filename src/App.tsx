@@ -16,7 +16,7 @@ const currentPath = () => {
   return base && (pathname === base || pathname.startsWith(`${base}/`)) ? pathname.slice(base.length) || '/' : pathname
 }
 
-type Card = { id: string; image: string; title: string; depth: number; offset: number; active: boolean }
+type Card = { id: string; image: string; title: string; depth: number; offset: number; active: boolean; imagePosition?: 'top' | 'center' }
 type Settings = {
   speed: number; direction: 'left' | 'right'; cardWidth: number; cardHeight: number; gap: number
   perspective: number; flow: boolean; wheel: boolean; dof: boolean; reducedMotion: boolean
@@ -36,6 +36,19 @@ const defaultCards: Card[] = [
   { id: '10', image: '/assets/card-10.png', title: 'BFX Empresarial — Identidade Visual', depth: 35, offset: -45, active: true },
   { id: '11', image: '/assets/cases/m4-logistica/home-cover.png', title: 'M4 Logística', depth: -5, offset: 70, active: true },
   { id: '12', image: '/assets/cases/vivacemare/cover.png', title: 'Vivacemare Investimentos', depth: 25, offset: -30, active: true },
+  { id: '13', image: '/assets/cases/behance/torus/home-hero.jpg', title: 'UI Website Torus', depth: -30, offset: 20, active: true, imagePosition: 'top' },
+  { id: '14', image: '/assets/cases/behance/edge/home-hero.jpg', title: 'UI Design — Edge', depth: 45, offset: -65, active: true, imagePosition: 'top' },
+  { id: '15', image: '/assets/cases/behance/saber-gestao/home-hero.jpg', title: 'UI Design — Saber Gestão', depth: -15, offset: 85, active: true, imagePosition: 'top' },
+  { id: '16', image: '/assets/cases/behance/mais-view/home-hero.jpg', title: 'UI Design — Mais View', depth: 55, offset: -15, active: true, imagePosition: 'top' },
+  { id: '17', image: '/assets/cases/behance/chocolateria-natal/01.png', title: 'Chocolateria Brasileira — Natal', depth: -45, offset: 60, active: true },
+  { id: '18', image: '/assets/cases/behance/geracao-agro/home-hero.jpg', title: 'UI Design — Geração Agro', depth: 15, offset: -80, active: true, imagePosition: 'top' },
+  { id: '19', image: '/assets/cases/behance/dr-joao-paulo-lira/home-hero.jpg', title: 'Dr. João Paulo Lira', depth: -55, offset: 40, active: true, imagePosition: 'top' },
+  { id: '20', image: '/assets/cases/behance/natuee/home-hero.jpg', title: 'UI Design — Natuee', depth: 30, offset: -50, active: true, imagePosition: 'top' },
+  { id: '21', image: '/assets/cases/behance/prpay/home-hero.jpg', title: 'UI Design Page PrPay', depth: -20, offset: 95, active: true, imagePosition: 'top' },
+  { id: '22', image: '/assets/cases/behance/dr-guilherme-minikowski/home-hero.jpg', title: 'Dr. Guilherme Minikowski', depth: 60, offset: -25, active: true, imagePosition: 'top' },
+  { id: '23', image: '/assets/cases/behance/braga-solucoes/home-hero.jpg', title: 'Braga Soluções', depth: -40, offset: 75, active: true, imagePosition: 'top' },
+  { id: '24', image: '/assets/cases/behance/foco/home-hero.jpg', title: 'Landing Page Foco', depth: 10, offset: -90, active: true, imagePosition: 'top' },
+  { id: '25', image: '/assets/cases/behance/pascoa-chocolateria/01.png', title: 'Chocolateria Brasileira — Páscoa', depth: 40, offset: 5, active: true },
 ]
 
 const defaultSettings: Settings = { speed: 1.5, direction: 'left', cardWidth: 407, cardHeight: 243, gap: 0, perspective: 501, flow: true, wheel: true, dof: true, reducedMotion: false }
@@ -43,7 +56,7 @@ const caseStudies: CaseStudy[] = [
   { id: 'vivacemare', image: '/assets/cases/vivacemare/cover.png', images: ['/assets/cases/vivacemare/cover.png', '/assets/cases/vivacemare/01-home.png', '/assets/cases/vivacemare/02-positioning.png', '/assets/cases/vivacemare/03-solutions.png', '/assets/cases/vivacemare/04-identity.png', '/assets/cases/vivacemare/05-team.png', '/assets/cases/vivacemare/06-time.png', '/assets/cases/vivacemare/07-contact.png'], category: 'Website', title: 'Vivacemare Investimentos', description: 'Website institucional para uma assessoria de investimentos que transforma patrimônio em relações de longo prazo, com visão 360° para pessoas físicas, empresas e clientes Private.', service: 'Estratégia digital', year: '2026', status: 'Finalizado', browserType: 'Website', url: 'https://vivaceinvestimentos.com.br/' },
   { id: 'torus', image: '/assets/cases/behance/torus/01.png', images: ['/assets/cases/behance/torus/01.png'], category: 'Website', title: 'UI Website Torus', description: 'Website para uma consultoria digital especializada em alimentos e bebidas, com foco em processos gerenciais, qualidade de vida e gestão de tempo para empreendedores.', service: 'UI / UX', browserType: 'Figma', year: '2023', prototype: 'https://www.figma.com/embed?embed_host=share&url=https%3A%2F%2Fwww.figma.com%2Fproto%2FVyIt8PCzFdtjYUCX97oXnk%2FTorus%3Fpage-id%3D0%253A1%26node-id%3D203%253A321%26viewport%3D408%252C111%252C0.18%26scaling%3Dscale-down-width%26starting-point-node-id%3D203%253A321', showCaseLink: false },
   { id: 'edge', image: '/assets/cases/behance/edge/01.jpg', images: ['/assets/cases/behance/edge/01.jpg'], category: 'Website', title: 'UI Design — Edge', description: 'Interface web experimental construída para explorar navegação, hierarquia visual e apresentação de conteúdo digital.', service: 'UI / UX', browserType: 'Figma', year: '2023', prototype: 'https://www.figma.com/embed?embed_host=share&url=https%3A%2F%2Fwww.figma.com%2Fproto%2F67bcf6UQgIwDKNJ02b9qF6%2FEDGE%3Fpage-id%3D0%253A1%26node-id%3D704%253A42%26viewport%3D-140%252C201%252C0.09%26scaling%3Dscale-down-width', showCaseLink: false },
-  { id: 'saber-gestao', image: '/assets/cases/behance/saber-gestao/01.png', images: ['/assets/cases/behance/saber-gestao/01.png'], category: 'Website', title: 'UI Design — Saber Gestão', description: 'Protótipo de interface para uma solução de gestão, com fluxo digital, organização de informações e navegação orientada a tarefas.', service: 'UI / UX', browserType: 'Figma', year: '2022', prototype: 'https://www.figma.com/embed?embed_host=share&url=https%3A%2F%2Fwww.figma.com%2Fproto%2FqJIbAh4NrARJLX1ovYgnM6%2FSaber-Gest%25C3%25A3o%3Fpage-id%3D0%253A1%26node-id%3D203%253A321%26viewport%3D-381%252C-231%252C0.83%26scaling%3Dscale-down-width%26starting-point-node-id%3D203%253A321%26show-proto-sidebar%3D1', showCaseLink: false },
+  { id: 'saber-gestao', image: '/assets/cases/behance/saber-gestao/01.png', images: ['/assets/cases/behance/saber-gestao/01.png'], category: 'Website', title: 'UI Design — Saber Gestão', description: 'Protótipo de interface para uma solução de gestão, com fluxo digital, organização de informações e navegação orientada a tarefas.', service: 'UI / UX', browserType: 'Figma', year: '2022', prototype: 'https://embed.figma.com/proto/qJIbAh4NrARJLX1ovYgnM6/Saber-Gest%C3%A3o?node-id=203-321&viewport=250%2C-39%2C0.29&scaling=scale-down-width&content-scaling=fixed&starting-point-node-id=203%3A321&page-id=0%3A1&hotspot-hints=0&embed-host=share', showCaseLink: false },
   { id: 'mais-view', image: '/assets/cases/behance/mais-view/01.png', images: ['/assets/cases/behance/mais-view/01.png'], category: 'Website', title: 'UI Design — Mais View', description: 'Interface digital com foco em clareza, leitura de dados e uma experiência de navegação simples e objetiva.', service: 'UI / UX', browserType: 'Figma', year: '2022', prototype: 'https://www.figma.com/embed?embed_host=share&url=https%3A%2F%2Fwww.figma.com%2Fproto%2FgUGr3V2qTluO2ZSyaoO39N%2FMaisView%3Fpage-id%3D0%253A1%26node-id%3D203%253A321%26viewport%3D653%252C89%252C0.06%26scaling%3Dscale-down-width%26starting-point-node-id%3D203%253A321', showCaseLink: false },
   { id: 'chocolateria-natal', image: '/assets/cases/behance/chocolateria-natal/01.png', images: ['/assets/cases/behance/chocolateria-natal/01.png', '/assets/cases/behance/chocolateria-natal/02.png', '/assets/cases/behance/chocolateria-natal/03.png', '/assets/cases/behance/chocolateria-natal/04.png', '/assets/cases/behance/chocolateria-natal/05.png', '/assets/cases/behance/chocolateria-natal/06.png', '/assets/cases/behance/chocolateria-natal/07.png', '/assets/cases/behance/chocolateria-natal/08.png'], category: 'Direção de arte', title: 'Comunicação Visual Natal — Chocolateria Brasileira', description: 'Sistema de comunicação visual para a campanha de Natal da Chocolateria Brasileira, com embalagens, peças gráficas e aplicações de marca.', service: 'Direção de arte', year: '2019', showCaseLink: false },
   { id: 'geracao-agro', image: '/assets/cases/behance/geracao-agro/01.png', images: ['/assets/cases/behance/geracao-agro/01.png'], category: 'Landing Page', title: 'UI Design — Geração Agro', description: 'Landing page para uma experiência digital do setor agro, com interface direta, apresentação de conteúdo e foco em conversão.', service: 'UI / UX', browserType: 'Figma', year: '2021', prototype: 'https://www.figma.com/embed?embed_host=share&url=https%3A%2F%2Fwww.figma.com%2Fproto%2FdnmwjvjvZnj9511k5IsYjP%2FGera%25C3%25A7%25C3%25A3o-Agro%3Fpage-id%3D0%253A1%26node-id%3D758%253A226%26viewport%3D242%252C48%252C0.06%26scaling%3Dscale-down-width%26starting-point-node-id%3D758%253A226', showCaseLink: false },
@@ -52,7 +65,7 @@ const caseStudies: CaseStudy[] = [
   { id: 'prpay', image: '/assets/cases/behance/prpay/01.jpg', images: ['/assets/cases/behance/prpay/01.jpg', '/assets/cases/behance/prpay/02.jpg'], category: 'Landing Page', title: 'UI Design Page PrPay', description: 'Página digital para apresentar uma solução financeira com hierarquia de informação, confiança e chamada para ação.', service: 'UI / UX', browserType: 'Figma', year: '2021', prototype: 'https://www.figma.com/embed?embed_host=share&url=https%3A%2F%2Fwww.figma.com%2Fproto%2Fc8IDJO1KVMrolHychrFmi5%2FPRPAY%3Fpage-id%3D0%253A1%26node-id%3D1%253A5%26viewport%3D241%252C48%252C0.06%26scaling%3Dscale-down-width', showCaseLink: false, coverPosition: 'top' },
   { id: 'dr-guilherme-minikowski', image: '/assets/cases/behance/dr-guilherme-minikowski/01.png', images: ['/assets/cases/behance/dr-guilherme-minikowski/01.png'], category: 'Landing Page', title: 'Landing Page Dr. Guilherme Minikowski', description: 'Landing page institucional para comunicar especialidade, credibilidade e caminhos de contato de forma objetiva.', service: 'UI / UX', year: '2021', showCaseLink: false, coverPosition: 'top' },
   { id: 'braga-solucoes', image: '/assets/cases/behance/braga-solucoes/01.jpg', images: ['/assets/cases/behance/braga-solucoes/01.jpg'], category: 'Landing Page', title: 'Landing Page Braga Soluções', description: 'Landing page para apresentar uma empresa de soluções com linguagem visual clara e foco na conversão.', service: 'UI / UX', year: '2021', showCaseLink: false, coverPosition: 'top' },
-  { id: 'foco', image: '/assets/cases/behance/foco/01.jpg', images: ['/assets/cases/behance/foco/01.jpg', '/assets/cases/behance/foco/02.jpg'], category: 'Landing Page', title: 'Landing Page Foco', description: 'Experiência de landing page com direção visual, narrativa de conteúdo e interface pensada para web.', service: 'UI / UX', year: '2021', showCaseLink: false },
+  { id: 'foco', image: '/assets/cases/behance/foco/01.jpg', images: ['/assets/cases/behance/foco/01.jpg'], category: 'Landing Page', title: 'Landing Page Foco', description: 'Experiência de landing page com direção visual, narrativa de conteúdo e interface pensada para web.', service: 'UI / UX', year: '2021', showCaseLink: false },
   { id: 'pascoa-chocolateria', image: '/assets/cases/behance/pascoa-chocolateria/01.png', images: ['/assets/cases/behance/pascoa-chocolateria/01.png', '/assets/cases/behance/pascoa-chocolateria/02.png', '/assets/cases/behance/pascoa-chocolateria/03.jpg', '/assets/cases/behance/pascoa-chocolateria/04.jpg', '/assets/cases/behance/pascoa-chocolateria/05.jpg', '/assets/cases/behance/pascoa-chocolateria/06.jpg', '/assets/cases/behance/pascoa-chocolateria/07.jpg', '/assets/cases/behance/pascoa-chocolateria/08.jpg', '/assets/cases/behance/pascoa-chocolateria/09.jpg', '/assets/cases/behance/pascoa-chocolateria/10.jpg', '/assets/cases/behance/pascoa-chocolateria/11.jpg'], category: 'Embalagem', title: 'Embalagens 3D Páscoa — Chocolateria Brasileira', description: 'Série de embalagens 3D para a campanha de Páscoa da Chocolateria Brasileira, com direção de arte e apresentação de produto.', service: 'Modelo 3D', year: '2019', showCaseLink: false },
   { id: 'centro-oeste', image: '/assets/card-03.jpg', images: ['/assets/cases/centro-oeste/ui-00.png', '/assets/cases/centro-oeste/ui-01.png', '/assets/cases/centro-oeste/ui-02.png', '/assets/cases/centro-oeste/ui-03.png', '/assets/cases/centro-oeste/ui-04.png', '/assets/cases/centro-oeste/ui-05.png', '/assets/cases/centro-oeste/ui-06.png'], category: 'Website', title: 'Centro Oeste Laticínio', description: 'Fundada em 1993, em Campolândia, Goiás, a Centro Oeste Laticínios começou produzindo queijos de alta qualidade e expandiu sua operação com uma moderna fábrica em Piranhas.', browserType: 'Website', year: '2025', status: 'Finalizado', url: 'https://centrooestelaticinios.com.br/' },
   { id: 'mana-poke', image: '/assets/card-01.jpg', images: ['/assets/cases/mana-poke-updated/01.png', '/assets/cases/mana-poke-updated/02.png', '/assets/cases/mana-poke-updated/03.png', '/assets/cases/mana-poke-updated/04.png', '/assets/cases/mana-poke-updated/05.png', '/assets/cases/mana-poke-updated/06.png', '/assets/cases/mana-poke-updated/07.png', '/assets/cases/mana-poke-updated/08.png', '/assets/cases/mana-poke-updated/09.png', '/assets/cases/mana-poke-updated/10.png', '/assets/cases/mana-poke-updated/11.png'], category: 'Landing Page', title: 'Mana Poke', description: 'Em colaboração com a Barbas.digital, desenvolvemos um layout para a página dos franqueados da Mana Poke, com acesso simples a informações e recursos essenciais para suas operações.', service: 'UI / UX', year: '2023', url: 'https://www.figma.com/' },
@@ -66,7 +79,7 @@ const caseStudies: CaseStudy[] = [
   { id: 'bfx-identidade', image: '/assets/card-10.png', images: ['/assets/cases/bfx-identidade/01.png', '/assets/cases/bfx-identidade/02.png', '/assets/cases/bfx-identidade/03.png', '/assets/cases/bfx-identidade/04.png', '/assets/cases/bfx-identidade/05.png', '/assets/cases/bfx-identidade/06.png', '/assets/cases/bfx-identidade/07.png'], category: 'Identidade Visual', title: 'BFX Empresarial — Identidade Visual', description: 'Sistema visual completo para a BFX Empresarial, com diretrizes de marca, animações, cores, fotografia, aplicações e assinatura de e-mail.', service: 'Direção de arte', year: '2026', url: 'https://bfxempresarial.com.br/style-guide' },
   { id: 'm4-logistica', image: '/assets/cases/m4-logistica/cover-black.png', images: ['/assets/cases/m4-logistica/cover-black.png', '/assets/cases/m4-logistica/02.png', '/assets/cases/m4-logistica/03.png', '/assets/cases/m4-logistica/04.png'], category: 'Identidade Visual', title: 'M4 Logística', description: 'Projeto de marca para a M4 Logística, com uma identidade forte e funcional aplicada à comunicação, aos uniformes e aos materiais da operação.', service: 'Branding', year: '2026', url: 'https://m4logistica.framer.website/' },
 ]
-const caseAnchorByCard: Record<string, string> = { '01': 'mana-poke', '02': 'dona', '03': 'centro-oeste', '04': 'os-turbo', '05': 'checkin', '06': 'guardasol', '07': 'santa-casa', '08': 'criosfera', '09': 'bfx-website', '10': 'bfx-identidade', '11': 'm4-logistica', '12': 'vivacemare' }
+const caseAnchorByCard: Record<string, string> = { '01': 'mana-poke', '02': 'dona', '03': 'centro-oeste', '04': 'os-turbo', '05': 'checkin', '06': 'guardasol', '07': 'santa-casa', '08': 'criosfera', '09': 'bfx-website', '10': 'bfx-identidade', '11': 'm4-logistica', '12': 'vivacemare', '13': 'torus', '14': 'edge', '15': 'saber-gestao', '16': 'mais-view', '17': 'chocolateria-natal', '18': 'geracao-agro', '19': 'dr-joao-paulo-lira', '20': 'natuee', '21': 'prpay', '22': 'dr-guilherme-minikowski', '23': 'braga-solucoes', '24': 'foco', '25': 'pascoa-chocolateria' }
 const load = <T,>(key: string, fallback: T): T => { try { return JSON.parse(localStorage.getItem(key) || '') as T } catch { return fallback } }
 const loadCards = () => {
   const saved = load<Card[]>('haus-cards', [])
@@ -249,13 +262,19 @@ function ParallaxMarquee({ cards, settings }: { cards: Card[]; settings: Setting
   const active = cards.filter(c => c.active)
   const track = useRef<HTMLDivElement>(null)
   const animationFrame = useRef<number>(0)
-  const state = useRef({ x: 0, last: 0, pressed: false, dragging: false, moved: false, start: 0, origin: 0, pointerId: -1 })
+  const state = useRef({ x: 0, last: 0, pressed: false, dragging: false, moved: false, start: 0, origin: 0, pointerId: -1, velocity: 0, lastPointerX: 0, lastPointerTime: 0 })
   const [hover, setHover] = useState<string | null>(null)
   const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const animate = useCallback((time: number) => {
     const s = state.current
     const dt = Math.min(32, time - s.last || 16); s.last = time
-    if (!s.dragging && !hover && !prefersReduced && !settings.reducedMotion) s.x += (settings.direction === 'left' ? -1 : 1) * settings.speed * dt * 0.05
+    if (!s.dragging && Math.abs(s.velocity) > 0.08) {
+      s.x += s.velocity * dt
+      s.velocity *= Math.pow(0.92, dt / 16)
+    } else {
+      s.velocity = 0
+      if (!s.dragging && !hover && !prefersReduced && !settings.reducedMotion) s.x += (settings.direction === 'left' ? -1 : 1) * settings.speed * dt * 0.05
+    }
     if (track.current) {
       const oneSet = (settings.cardWidth + settings.gap) * active.length
       let x = s.x % oneSet; if (x > 0) x -= oneSet
@@ -268,17 +287,21 @@ function ParallaxMarquee({ cards, settings }: { cards: Card[]; settings: Setting
     return () => cancelAnimationFrame(animationFrame.current)
   }, [animate])
   useEffect(() => { const onWheel = (e: WheelEvent) => { if (settings.wheel) state.current.x -= e.deltaY * 0.35 }; window.addEventListener('wheel', onWheel, { passive: true }); return () => window.removeEventListener('wheel', onWheel) }, [settings.wheel])
-  const pointerDown = (e: React.PointerEvent) => { if (e.target instanceof Element && e.target.closest('.project-card')) { state.current.moved = false; return } if (e.pointerType === 'mouse' && e.button !== 0) return; state.current.pressed = true; state.current.dragging = false; state.current.moved = false; state.current.pointerId = e.pointerId; state.current.start = e.clientX; state.current.origin = state.current.x }
+  const pointerDown = (e: React.PointerEvent) => { if (e.pointerType === 'mouse' && e.button !== 0) return; const s = state.current; s.pressed = true; s.dragging = true; s.moved = false; s.velocity = 0; s.pointerId = e.pointerId; s.start = e.clientX; s.origin = s.x; s.lastPointerX = e.clientX; s.lastPointerTime = e.timeStamp; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) }
   const pointerMove = (e: React.PointerEvent) => {
     const s = state.current
     if (!s.pressed || s.pointerId !== e.pointerId) return
     const delta = e.clientX - s.start
-    if (!s.dragging && Math.abs(delta) > 12) {
-      s.dragging = true
+    if (Math.abs(delta) > 7) {
       s.moved = true
-      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     }
-    if (s.dragging) s.x = s.origin + delta
+    if (s.moved) {
+      const elapsed = Math.max(1, e.timeStamp - s.lastPointerTime)
+      s.velocity = (e.clientX - s.lastPointerX) / elapsed
+      s.x = s.origin + delta
+    }
+    s.lastPointerX = e.clientX
+    s.lastPointerTime = e.timeStamp
   }
   const pointerUp = (e: React.PointerEvent) => {
     const s = state.current
@@ -300,7 +323,7 @@ function ParallaxMarquee({ cards, settings }: { cards: Card[]; settings: Setting
     <div className="fade fade-left" /><div className="fade fade-right" />
     <div className="track" ref={track}>
       {repeated.map((card, i) => <a className="project-card" href={`${sitePath('/cases')}#case-${caseAnchorByCard[card.id]}`} aria-label={`Abrir case ${card.title}`} key={`${card.id}-${i}`} style={{ width: settings.cardWidth, height: settings.cardHeight, marginRight: settings.gap, transform: `translateY(${settings.flow ? card.offset + Math.sin(i * 1.3) * 8 : card.offset}px) translateZ(${card.depth}px)`, filter: hover === card.id ? 'none' : settings.dof ? `blur(${Math.min(3, Math.abs(card.depth) / 80)}px)` : undefined }} onClick={event => openCard(event, card.id)} onMouseEnter={() => setHover(card.id)} onMouseLeave={() => setHover(null)}>
-        <img src={assetPath(card.image)} alt={card.title} draggable="false" />
+        <img src={assetPath(card.image)} alt={card.title} style={{ objectPosition: card.imagePosition === 'top' ? 'center top' : 'center' }} draggable="false" />
         <span className={`card-caption ${hover === card.id ? 'is-visible' : ''}`}>{card.title}</span>
       </a>)}
     </div>
@@ -480,6 +503,63 @@ function Contact() {
   </main>
 }
 
+function LazyFigmaPrototype({ src, title }: { src: string; title: string }) {
+  const frameRef = useRef<HTMLDivElement>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const loadFallbackRef = useRef<number | null>(null)
+  const isLoadedRef = useRef(false)
+  const [shouldLoad, setShouldLoad] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(false)
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (!['https://www.figma.com', 'https://embed.figma.com'].includes(event.origin)) return
+      if (event.source !== iframeRef.current?.contentWindow || event.data?.type !== 'INITIAL_LOAD') return
+      if (loadFallbackRef.current !== null) window.clearTimeout(loadFallbackRef.current)
+      isLoadedRef.current = true
+      setIsLoaded(true)
+    }
+    window.addEventListener('message', handleMessage)
+
+    const cleanup = () => {
+      window.removeEventListener('message', handleMessage)
+      if (loadFallbackRef.current !== null) window.clearTimeout(loadFallbackRef.current)
+    }
+    const frame = frameRef.current
+    if (!frame) return cleanup
+    if (!('IntersectionObserver' in window)) {
+      setShouldLoad(true)
+      return cleanup
+    }
+    const observer = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return
+      setShouldLoad(true)
+      observer.disconnect()
+    }, { rootMargin: '500px 0px' })
+    observer.observe(frame)
+    return () => {
+      observer.disconnect()
+      cleanup()
+    }
+  }, [])
+
+  return <div ref={frameRef} className={`case-prototype-frame ${isLoaded ? 'is-loaded' : ''}`}>
+    {shouldLoad && <iframe ref={iframeRef} src={src} title={title} loading="eager" allow="fullscreen" onLoad={() => {
+      if (isLoadedRef.current || loadFallbackRef.current !== null) return
+      loadFallbackRef.current = window.setTimeout(() => {
+        isLoadedRef.current = true
+        setIsLoaded(true)
+      }, 1800)
+    }} />}
+    {!isLoaded && <div className="case-prototype-loading" role="status" aria-live="polite" aria-label={shouldLoad ? 'Carregando protótipo Figma' : 'Protótipo aguardando carregamento'}>
+      <div className="case-prototype-loader-brand">
+        <img src="/brand/logo-dark.svg" alt="" />
+        <span className="case-prototype-loader-progress" aria-hidden="true" />
+      </div>
+    </div>}
+  </div>
+}
+
 function CaseGallery({ project }: { project: CaseStudy }) {
   const [active, setActive] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
@@ -494,9 +574,9 @@ function CaseGallery({ project }: { project: CaseStudy }) {
   return <div className={`case-gallery ${project.prototype ? 'has-prototype' : ''}`} onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)} onFocusCapture={() => setIsPaused(true)} onBlurCapture={() => setIsPaused(false)}>
     {project.prototype && <div className="case-prototype" id={`prototype-${project.id}`}>
       <div className="case-prototype-heading"><span className="eyebrow">Protótipo interativo</span><span>Figma · ao vivo</span></div>
-      <div className="case-prototype-frame"><iframe src={project.prototype} title={`Protótipo Figma de ${project.title}`} loading="lazy" allow="fullscreen" /></div>
+      <LazyFigmaPrototype src={project.prototype} title={`Protótipo Figma de ${project.title}`} />
     </div>}
-    <div className="case-reference">
+    {!project.prototype && <div className="case-reference">
       {project.prototype && <div className="case-reference-label"><span>Visão do projeto</span><span>{project.images.length} {project.images.length === 1 ? 'imagem' : 'imagens'}</span></div>}
       <div className={`case-device ${isDigital ? 'is-line-frame' : ''}`}>
         <div className="case-device-screen">
@@ -523,7 +603,7 @@ function CaseGallery({ project }: { project: CaseStudy }) {
       <div className="case-gallery-dots" aria-label={`Selecionar imagem de ${project.title}`}>
         {project.images.map((image, index) => <button type="button" className={index === active ? 'is-active' : ''} key={image} onClick={() => setActive(index)} aria-label={`Ver imagem ${index + 1}`} />)}
       </div>
-    </div>
+    </div>}
   </div>
 }
 
