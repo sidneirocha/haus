@@ -491,36 +491,39 @@ function CaseGallery({ project }: { project: CaseStudy }) {
     const timer = window.setInterval(next, 4000)
     return () => window.clearInterval(timer)
   }, [isPaused, project.images.length])
-  return <div className="case-gallery" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)} onFocusCapture={() => setIsPaused(true)} onBlurCapture={() => setIsPaused(false)}>
-    <div className={`case-device ${isDigital ? 'is-line-frame' : ''}`}>
-      <div className="case-device-screen">
-        {isDigital && <i className="case-device-camera" aria-hidden="true" />}
-        {isDigital && <div className="case-browser-bar" aria-hidden="true"><span className="case-browser-dots"><i /><i /><i /></span><span>haus.art.br / {project.id}</span><b>{project.browserType || project.service || 'Digital experience'}</b></div>}
-        <div
-          className={`case-gallery-stage ${isDigital ? 'is-digital' : ''} ${project.id === 'vivacemare' ? 'is-vivacemare' : ''}`}
-          onContextMenu={(event) => event.preventDefault()}
-          onDragStart={(event) => event.preventDefault()}
-        >
-          <div className="case-gallery-track" style={{ transform: `translateY(-${active * 100}%)` }}>
-            {project.images.map((image, index) => <img className={project.id === 'm4-logistica' && index === 0 ? 'is-m4-cover' : project.id === 'vivacemare' && index === 0 ? 'is-vivacemare-cover' : undefined} key={image} src={assetPath(image)} alt={`${project.title} — imagem ${index + 1}`} draggable={false} />)}
-          </div>
-          {project.id === 'bfx-identidade' && active === 0 && <div className="case-brand-cover"><img src={assetPath('/assets/logo-bfx-dark.svg')} alt="BFX Empresarial" draggable={false} /></div>}
-          <div className="case-gallery-controls">
-            <button type="button" onClick={previous} aria-label={`Imagem anterior de ${project.title}`}>←</button>
-            <span><b>{String(active + 1).padStart(2, '0')}</b> / {String(project.images.length).padStart(2, '0')}</span>
-            <button type="button" onClick={next} aria-label={`Próxima imagem de ${project.title}`}>→</button>
-          </div>
-        </div>
-      </div>
-      {isDigital && <div className="case-device-base" aria-hidden="true"><i /></div>}
-    </div>
-    <div className="case-gallery-dots" aria-label={`Selecionar imagem de ${project.title}`}>
-      {project.images.map((image, index) => <button type="button" className={index === active ? 'is-active' : ''} key={image} onClick={() => setActive(index)} aria-label={`Ver imagem ${index + 1}`} />)}
-    </div>
+  return <div className={`case-gallery ${project.prototype ? 'has-prototype' : ''}`} onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)} onFocusCapture={() => setIsPaused(true)} onBlurCapture={() => setIsPaused(false)}>
     {project.prototype && <div className="case-prototype" id={`prototype-${project.id}`}>
-      <div className="case-prototype-heading"><span className="eyebrow">Protótipo interativo</span><span>Figma</span></div>
+      <div className="case-prototype-heading"><span className="eyebrow">Protótipo interativo</span><span>Figma · ao vivo</span></div>
       <div className="case-prototype-frame"><iframe src={project.prototype} title={`Protótipo Figma de ${project.title}`} loading="lazy" allow="fullscreen" /></div>
     </div>}
+    <div className="case-reference">
+      {project.prototype && <div className="case-reference-label"><span>Visão do projeto</span><span>{project.images.length} {project.images.length === 1 ? 'imagem' : 'imagens'}</span></div>}
+      <div className={`case-device ${isDigital ? 'is-line-frame' : ''}`}>
+        <div className="case-device-screen">
+          {isDigital && <i className="case-device-camera" aria-hidden="true" />}
+          {isDigital && <div className="case-browser-bar" aria-hidden="true"><span className="case-browser-dots"><i /><i /><i /></span><span>haus.art.br / {project.id}</span><b>{project.browserType || project.service || 'Digital experience'}</b></div>}
+          <div
+            className={`case-gallery-stage ${isDigital ? 'is-digital' : ''} ${project.id === 'vivacemare' ? 'is-vivacemare' : ''}`}
+            onContextMenu={(event) => event.preventDefault()}
+            onDragStart={(event) => event.preventDefault()}
+          >
+            <div className="case-gallery-track" style={{ transform: `translateY(-${active * 100}%)` }}>
+              {project.images.map((image, index) => <img className={project.id === 'm4-logistica' && index === 0 ? 'is-m4-cover' : project.id === 'vivacemare' && index === 0 ? 'is-vivacemare-cover' : undefined} key={image} src={assetPath(image)} alt={`${project.title} — imagem ${index + 1}`} draggable={false} />)}
+            </div>
+            {project.id === 'bfx-identidade' && active === 0 && <div className="case-brand-cover"><img src={assetPath('/assets/logo-bfx-dark.svg')} alt="BFX Empresarial" draggable={false} /></div>}
+            <div className="case-gallery-controls">
+              <button type="button" onClick={previous} aria-label={`Imagem anterior de ${project.title}`}>←</button>
+              <span><b>{String(active + 1).padStart(2, '0')}</b> / {String(project.images.length).padStart(2, '0')}</span>
+              <button type="button" onClick={next} aria-label={`Próxima imagem de ${project.title}`}>→</button>
+            </div>
+          </div>
+        </div>
+        {isDigital && <div className="case-device-base" aria-hidden="true"><i /></div>}
+      </div>
+      <div className="case-gallery-dots" aria-label={`Selecionar imagem de ${project.title}`}>
+        {project.images.map((image, index) => <button type="button" className={index === active ? 'is-active' : ''} key={image} onClick={() => setActive(index)} aria-label={`Ver imagem ${index + 1}`} />)}
+      </div>
+    </div>
   </div>
 }
 
